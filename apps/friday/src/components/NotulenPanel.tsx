@@ -138,6 +138,11 @@ export default function NotulenPanel({ onClose, projectId, projectName }: Props)
                           {n.samenvatting}
                         </p>
                       )}
+                      {n.created_by_name && (
+                        <p className="text-[10px] text-gray-300 mt-1 italic">
+                          door {n.created_by_name}
+                        </p>
+                      )}
                     </button>
                   )
                 })}

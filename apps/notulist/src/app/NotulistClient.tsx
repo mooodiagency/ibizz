@@ -1,13 +1,22 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import Image from 'next/image'
-import { Mic, MicOff, FileText, Download, RotateCcw, Loader2, Clock, CheckCircle2, AlertCircle, Save, FolderOpen } from 'lucide-react'
+import { Mic, MicOff, FileText, Download, RotateCcw, Loader2, Clock, CheckCircle2, AlertCircle, Save, FolderOpen, Upload } from 'lucide-react'
 import type { NotulenData } from '@ibizz/pdf'
 import { createClient } from '@ibizz/supabase'
 import type { Project } from '@ibizz/supabase'
+import { TopBar } from '@ibizz/ui'
+import type { AppId } from '@ibizz/ui'
+import { useAuth } from '@/lib/auth'
 
-type Phase = 'idle' | 'recording' | 'generating' | 'done'
+const APP_URLS: Record<AppId, string> = {
+  friday: process.env.NEXT_PUBLIC_FRIDAY_URL ?? 'http://localhost:3000',
+  notulist: process.env.NEXT_PUBLIC_NOTULIST_URL ?? 'http://localhost:3001',
+  brandstudio: process.env.NEXT_PUBLIC_BRANDSTUDIO_URL ?? 'http://localhost:3002',
+  'sea-agent': process.env.NEXT_PUBLIC_SEA_AGENT_URL ?? 'http://localhost:3003',
+}
+
+type Phase = 'idle' | 'recording' | 'transcribing' | 'generating' | 'done'
 
 declare global {
   interface Window {
@@ -17,6 +26,7 @@ declare global {
 }
 
 export default function NotulistClient() {
+  const { user, userName, signOut } = useAuth()
   const [phase, setPhase] = useState<Phase>('idle')
   const [transcript, setTranscript] = useState('')
   const [interimText, setInterimText] = useState('')
@@ -31,6 +41,9 @@ export default function NotulistClient() {
   const [saveProjectId, setSaveProjectId] = useState<string>('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+
+  // Upload progress
+  const [uploadQueue, setUploadQueue] = useState<{ name: string; status: 'pending' | 'uploading' | 'done' | 'error'; error?: string }[]>([])
   const [fixingName, setFixingName] = useState(false)
   const lastFixedNameRef = useRef('')
 
@@ -114,20 +127,8 @@ export default function NotulistClient() {
     transcriptRef.current = ''
   }, [phase])
 
-  const stopAndGenerate = useCallback(async () => {
-    const recognition = recognitionRef.current
-    recognitionRef.current = null
-    recognition?.stop()
+  const generateFromTranscript = useCallback(async (full: string) => {
     setPhase('generating')
-    setInterimText('')
-
-    const full = transcriptRef.current.trim()
-    if (!full) {
-      setError('Geen spraak herkend. Probeer opnieuw.')
-      setPhase('idle')
-      return
-    }
-
     try {
       const res = await fetch('/api/notulen', {
         method: 'POST',
@@ -144,6 +145,72 @@ export default function NotulistClient() {
       setPhase('idle')
     }
   }, [])
+
+  const uploadFiles = useCallback(async (files: File[]) => {
+    if (files.length === 0) return
+    setError(null)
+    setPhase('transcribing')
+    setTranscript('')
+    transcriptRef.current = ''
+
+    const queue = files.map(f => ({ name: f.name, status: 'pending' as const }))
+    setUploadQueue(queue)
+
+    const transcripts: string[] = []
+    let anyError = false
+
+    for (let i = 0; i < files.length; i++) {
+      setUploadQueue(prev => prev.map((q, idx) => idx === i ? { ...q, status: 'uploading' } : q))
+      try {
+        const fd = new FormData()
+        fd.append('file', files[i])
+        const res = await fetch('/api/transcribe', { method: 'POST', body: fd })
+        if (!res.ok) {
+          const { error: msg } = await res.json().catch(() => ({ error: 'Transcribe fout' }))
+          throw new Error(msg)
+        }
+        const { transcript: t } = await res.json()
+        transcripts.push(`[${files[i].name}]\n${t}`)
+        setUploadQueue(prev => prev.map((q, idx) => idx === i ? { ...q, status: 'done' } : q))
+      } catch (e) {
+        anyError = true
+        const msg = e instanceof Error ? e.message : 'Fout'
+        setUploadQueue(prev => prev.map((q, idx) => idx === i ? { ...q, status: 'error', error: msg } : q))
+      }
+    }
+
+    if (transcripts.length === 0) {
+      setError('Alle bestanden zijn mislukt.')
+      setPhase('idle')
+      return
+    }
+
+    if (anyError) {
+      // doorgaan met wat we hebben, maar log
+      console.warn('Sommige bestanden zijn mislukt')
+    }
+
+    const combined = transcripts.join('\n\n--- volgende opname ---\n\n')
+    transcriptRef.current = combined
+    setTranscript(combined)
+    await generateFromTranscript(combined)
+  }, [generateFromTranscript])
+
+  const stopAndGenerate = useCallback(async () => {
+    const recognition = recognitionRef.current
+    recognitionRef.current = null
+    recognition?.stop()
+    setInterimText('')
+
+    const full = transcriptRef.current.trim()
+    if (!full) {
+      setError('Geen spraak herkend. Probeer opnieuw.')
+      setPhase('idle')
+      return
+    }
+
+    await generateFromTranscript(full)
+  }, [generateFromTranscript])
 
   const reset = useCallback(() => {
     const recognition = recognitionRef.current
@@ -199,6 +266,8 @@ export default function NotulistClient() {
       actiepunten: notulen.actiepunten,
       volgende_vergadering: notulen.volgende_vergadering,
       transcript: transcriptRef.current,
+      created_by: user?.id ?? null,
+      created_by_name: userName || null,
     })
     setSaving(false)
     if (insertError) {
@@ -222,23 +291,22 @@ export default function NotulistClient() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
 
-      {/* ── Header ────────────────────────────────────────── */}
-      <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Image src="/logo-full.svg" alt="ibizz" width={100} height={18} priority />
-          <span className="text-gray-300">|</span>
-          <span className="text-sm font-semibold text-gray-700">Notulist</span>
-        </div>
-        {phase !== 'idle' && (
+      <TopBar
+        currentApp="notulist"
+        appUrls={APP_URLS}
+        userName={userName}
+        userColor="#EB4628"
+        onSignOut={signOut}
+        extras={phase !== 'idle' ? (
           <button
             onClick={reset}
-            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors px-2"
           >
             <RotateCcw size={14} />
             Nieuwe vergadering
           </button>
-        )}
-      </header>
+        ) : null}
+      />
 
       {/* ── Content ───────────────────────────────────────── */}
       <main className="flex-1 flex flex-col items-center py-12 px-4">
@@ -259,8 +327,9 @@ export default function NotulistClient() {
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Vergadering opnemen</h1>
             <p className="text-gray-500 text-sm mb-8 leading-relaxed">
-              Start de opname, bespreek je vergadering, en ontvang automatisch professionele notulen in ibizz-stijl als PDF.
+              Start de opname, of upload een bestaande opname (m4a, mp3, mp4, mov, etc.) en ontvang automatisch professionele notulen.
             </p>
+
             <button
               onClick={startRecording}
               className="flex items-center gap-2 px-8 py-3.5 rounded-2xl text-white font-semibold text-sm shadow-lg hover:opacity-90 transition-opacity"
@@ -269,7 +338,64 @@ export default function NotulistClient() {
               <Mic size={17} />
               Start vergadering
             </button>
-            <p className="text-xs text-gray-400 mt-4">Werkt in Chrome en Edge · Nederlands</p>
+
+            <div className="flex items-center gap-3 my-5 w-full max-w-xs">
+              <span className="flex-1 h-px bg-gray-200" />
+              <span className="text-xs text-gray-400 font-medium">of</span>
+              <span className="flex-1 h-px bg-gray-200" />
+            </div>
+
+            <label className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white border border-gray-200 hover:border-[#EB4628] cursor-pointer text-sm font-semibold text-gray-700 transition-colors">
+              <Upload size={15} />
+              Upload bestanden
+              <input
+                type="file"
+                multiple
+                accept="audio/*,video/*,.m4a,.mp3,.wav,.mp4,.mov,.avi,.webm,.ogg,.flac"
+                className="hidden"
+                onChange={e => {
+                  const files = Array.from(e.target.files ?? [])
+                  if (files.length > 0) uploadFiles(files)
+                  e.target.value = ''
+                }}
+              />
+            </label>
+
+            <p className="text-xs text-gray-400 mt-4">Max 25MB per bestand · meerdere tegelijk · Nederlands</p>
+          </div>
+        )}
+
+        {/* ── TRANSCRIBING ──────────────────────────────────── */}
+        {phase === 'transcribing' && (
+          <div className="w-full max-w-md flex flex-col items-center gap-5">
+            <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ backgroundColor: '#EB462812' }}>
+              <Loader2 size={36} className="animate-spin" style={{ color: '#EB4628' }} />
+            </div>
+            <div className="text-center">
+              <p className="text-base font-semibold text-gray-800 mb-1">
+                {uploadQueue.length > 1 ? `Bestanden worden getranscribeerd…` : `Bestand wordt getranscribeerd…`}
+              </p>
+              <p className="text-sm text-gray-400">Gemini analyseert je opname{uploadQueue.length > 1 ? 's' : ''}. Dit kan even duren.</p>
+            </div>
+
+            {uploadQueue.length > 0 && (
+              <div className="w-full bg-white border border-gray-200 rounded-xl divide-y divide-gray-100 overflow-hidden">
+                {uploadQueue.map((q, i) => (
+                  <div key={i} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                    {q.status === 'pending' && <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-200" />}
+                    {q.status === 'uploading' && <Loader2 size={14} className="animate-spin" style={{ color: '#EB4628' }} />}
+                    {q.status === 'done' && <CheckCircle2 size={14} className="text-green-500" />}
+                    {q.status === 'error' && <AlertCircle size={14} className="text-red-500" />}
+                    <span className="flex-1 truncate text-gray-700">{q.name}</span>
+                    {q.status === 'uploading' && <span className="text-xs text-gray-400">bezig…</span>}
+                    {q.status === 'done' && <span className="text-xs text-green-600">klaar</span>}
+                    {q.status === 'error' && (
+                      <span className="text-xs text-red-500 truncate max-w-[180px]" title={q.error}>{q.error}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

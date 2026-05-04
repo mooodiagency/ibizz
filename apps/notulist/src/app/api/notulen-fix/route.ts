@@ -13,6 +13,18 @@ function getApiKey(): string | undefined {
   }
 }
 
+function extractJson(text: string): string {
+  let t = text.trim()
+  const fenceMatch = t.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)
+  if (fenceMatch) t = fenceMatch[1].trim()
+  const first = t.indexOf('{')
+  const last = t.lastIndexOf('}')
+  if (first !== -1 && last !== -1 && last > first) {
+    t = t.slice(first, last + 1)
+  }
+  return t
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { notulen, correctName } = await req.json()
@@ -57,7 +69,7 @@ Geef ALLEEN geldige JSON terug in exact hetzelfde formaat als hierboven, met de 
 
     const data = await res.json()
     const text = data.content?.[0]?.text ?? ''
-    const corrected = JSON.parse(text)
+    const corrected = JSON.parse(extractJson(text))
     return NextResponse.json(corrected)
   } catch (err) {
     console.error('Fix-name fout:', err)

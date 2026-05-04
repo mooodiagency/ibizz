@@ -92,22 +92,23 @@ function AppInner() {
   const activeProject = projects.find(p => p.id === activeId)
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar
-        projects={projects}
-        activeId={showOverview || showApps ? null : activeId}
-        showOverview={showOverview}
-        showApps={showApps}
-        onSelect={id => { setActiveId(id); setShowOverview(false); setShowApps(false) }}
-        onOverview={() => { setShowOverview(true); setShowApps(false) }}
-        onApps={() => { setShowApps(true); setShowOverview(false) }}
-        onAdd={() => setAddingProject(true)}
-        onColorChange={handleColorChange}
-        onDelete={handleDelete}
-      />
+    <div className="flex flex-col h-screen overflow-hidden">
+      <TopBar />
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar
+          projects={projects}
+          activeId={showOverview || showApps ? null : activeId}
+          showOverview={showOverview}
+          showApps={showApps}
+          onSelect={id => { setActiveId(id); setShowOverview(false); setShowApps(false) }}
+          onOverview={() => { setShowOverview(true); setShowApps(false) }}
+          onApps={() => { setShowApps(true); setShowOverview(false) }}
+          onAdd={() => setAddingProject(true)}
+          onColorChange={handleColorChange}
+          onDelete={handleDelete}
+        />
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <TopBar />
+        <div className="flex-1 flex flex-col min-w-0">
 
         {addingProject && (
           <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
@@ -179,6 +180,7 @@ function AppInner() {
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   )

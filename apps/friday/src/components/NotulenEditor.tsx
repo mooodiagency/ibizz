@@ -491,6 +491,7 @@ function ViewMode({ n, project, sections, addingTaskIdx, sectionPickerIdx, onTas
         )}
         {n.datum && <span><b className="text-gray-700">Datum:</b> {n.datum}</span>}
         {n.aanwezig.length > 0 && <span><b className="text-gray-700">Aanwezig:</b> {n.aanwezig.join(', ')}</span>}
+        {n.created_by_name && <span><b className="text-gray-700">Aangemaakt door:</b> {n.created_by_name}</span>}
       </div>
 
       {n.samenvatting && (

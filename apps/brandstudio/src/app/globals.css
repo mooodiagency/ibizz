@@ -1,0 +1,50 @@
+@import "tailwindcss";
+@source "../../../../packages/ui/src/**/*.{ts,tsx}";
+
+:root {
+  --ibizz-red: #EB4628;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f9f9f7;
+  color: #1a1a1a;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 2px;
+}
+
+/* ─── AI thinking animatie op het // mark ─── */
+@keyframes ibizz-slash-pulse-a {
+  0%, 100% { opacity: 1; transform: translateX(0); }
+  50% { opacity: 0.25; transform: translateX(-1px); }
+}
+
+@keyframes ibizz-slash-pulse-b {
+  0%, 100% { opacity: 0.25; transform: translateX(1px); }
+  50% { opacity: 1; transform: translateX(0); }
+}
+
+.ibizz-slash-1 {
+  animation: ibizz-slash-pulse-a 1.4s ease-in-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.ibizz-slash-2 {
+  animation: ibizz-slash-pulse-b 1.4s ease-in-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}

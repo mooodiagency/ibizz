@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
 import type { Project } from '@ibizz/supabase'
 import { Plus, Trash2, LayoutDashboard, AppWindow } from 'lucide-react'
@@ -43,12 +42,8 @@ export default function Sidebar({ projects, activeId, showOverview, showApps, on
 
   return (
     <div className="w-52 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col h-full">
-      <div className="px-4 py-4 border-b border-gray-100">
-        <Image src="/logo-full.svg" alt="ibizz" width={120} height={22} priority />
-      </div>
-
       {/* Nav */}
-      <div className="px-2 py-2 border-b border-gray-100 space-y-0.5">
+      <div className="px-2 py-3 border-b border-gray-100 space-y-0.5">
         <button
           onClick={onOverview}
           className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${

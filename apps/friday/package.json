@@ -16,6 +16,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@ibizz/pdf": "*",
     "@ibizz/supabase": "*",
+    "@ibizz/ui": "*",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.105.0",
     "date-fns": "^4.1.0",

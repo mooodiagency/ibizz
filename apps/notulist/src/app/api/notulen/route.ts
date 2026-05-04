@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
 
+export const runtime = 'nodejs'
+export const maxDuration = 300
+
 function getApiKey(): string | undefined {
   if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY
   try {
@@ -11,6 +14,21 @@ function getApiKey(): string | undefined {
   } catch {
     return undefined
   }
+}
+
+/** Trim markdown fences en extract JSON object uit Claude's antwoord */
+function extractJson(text: string): string {
+  let t = text.trim()
+  // Strip markdown fences: ```json ... ``` of ``` ... ```
+  const fenceMatch = t.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)
+  if (fenceMatch) t = fenceMatch[1].trim()
+  // Pak vanaf eerste { tot laatste }
+  const first = t.indexOf('{')
+  const last = t.lastIndexOf('}')
+  if (first !== -1 && last !== -1 && last > first) {
+    t = t.slice(first, last + 1)
+  }
+  return t
 }
 
 export async function POST(req: NextRequest) {
@@ -39,7 +57,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model: 'claude-opus-4-7',
-        max_tokens: 2000,
+        max_tokens: 8000,
         messages: [{
           role: 'user',
           content: `Je bent een professionele notulist voor ibizz, een creatief en digitaal bureau. Verwerk het volgende vergaderingstranscript naar gestructureerde notulen in het Nederlands.
@@ -49,7 +67,9 @@ Vandaag is het: ${today}
 TRANSCRIPT:
 ${transcript}
 
-Geef je antwoord als ALLEEN geldige JSON (geen markdown, geen uitleg):
+BELANGRIJK: geef ALLEEN geldige JSON terug. Geen markdown code fences, geen uitleg, geen tekst eromheen. Begin direct met { en eindig met }. Escape dubbele quotes binnen string-velden als \\".
+
+Format:
 {
   "datum": "volledige datum van de vergadering",
   "aanwezig": ["naam1", "naam2"],
@@ -75,10 +95,19 @@ Geef je antwoord als ALLEEN geldige JSON (geen markdown, geen uitleg):
 
     const data = await res.json()
     const text = data.content?.[0]?.text ?? ''
-    const notulen = JSON.parse(text)
+    const cleaned = extractJson(text)
+    let notulen
+    try {
+      notulen = JSON.parse(cleaned)
+    } catch (parseErr) {
+      console.error('Notulen JSON parse fout. Raw text:', text.slice(0, 500))
+      console.error('Cleaned:', cleaned.slice(0, 500))
+      throw parseErr
+    }
     return NextResponse.json(notulen)
   } catch (err) {
     console.error('Notulen fout:', err)
-    return NextResponse.json({ error: 'Verwerking mislukt' }, { status: 500 })
+    const msg = err instanceof Error ? err.message : 'Verwerking mislukt'
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
