@@ -91,6 +91,37 @@ export const FORMATS: FormatDef[] = [
   { id: 'funda-mob-banner',       platform: 'Funda', name: 'Mobile Largebanner',         group: 'Funda', width: 320, height: 100 },
 ]
 
+import type { AspectRatio } from './types'
+
+/** Door Gemini ondersteunde aspect ratios met hun decimal value voor matching. */
+const GEMINI_RATIOS: Array<{ label: AspectRatio; value: number }> = [
+  { label: '1:1',  value: 1 / 1 },
+  { label: '2:3',  value: 2 / 3 },
+  { label: '3:2',  value: 3 / 2 },
+  { label: '3:4',  value: 3 / 4 },
+  { label: '4:3',  value: 4 / 3 },
+  { label: '4:5',  value: 4 / 5 },
+  { label: '5:4',  value: 5 / 4 },
+  { label: '9:16', value: 9 / 16 },
+  { label: '16:9', value: 16 / 9 },
+  { label: '21:9', value: 21 / 9 },
+]
+
+/**
+ * Map any width/height to the closest Gemini-supported aspect ratio.
+ * Garandeert dat Gemini de juiste oriëntatie produceert.
+ */
+export function nearestGeminiAspectRatio(width: number, height: number): AspectRatio {
+  const target = width / height
+  let best = GEMINI_RATIOS[0]
+  let bestDiff = Math.abs(GEMINI_RATIOS[0].value - target)
+  for (const r of GEMINI_RATIOS) {
+    const diff = Math.abs(r.value - target)
+    if (diff < bestDiff) { best = r; bestDiff = diff }
+  }
+  return best.label
+}
+
 export function aspectRatioOf(width: number, height: number): string {
   const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b)
   const g = gcd(width, height)

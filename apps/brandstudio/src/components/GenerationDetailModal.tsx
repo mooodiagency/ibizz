@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
-  X, Check, XCircle, Pencil, Loader2, Download, AlertCircle, RotateCcw, Layers,
+  X, Check, XCircle, Pencil, Loader2, Download, AlertCircle, RotateCcw, Layers, Brush, Trash2,
 } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
 import type { Generation, BrandImage } from '@ibizz/supabase'
@@ -10,6 +10,7 @@ import IbizzMark from './IbizzMark'
 import FormatPicker from './FormatPicker'
 import type { SelectedFormat } from './FormatPicker'
 import { downloadResized } from '@/lib/resize'
+import MaskBrushOverlay, { type MaskBrushHandle } from './MaskBrushOverlay'
 
 type Props = {
   generation: Generation
@@ -29,6 +30,15 @@ export default function GenerationDetailModal({ generation, onClose, onUpdated, 
   const [error, setError] = useState<string | null>(null)
   const [exportPickerOpen, setExportPickerOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
+
+  // Brush / inpaint mode
+  const [brushMode, setBrushMode] = useState(false)
+  const [brushSize, setBrushSize] = useState(60)
+  const [hasMask, setHasMask] = useState(false)
+  const [inpaintPrompt, setInpaintPrompt] = useState('')
+  const [inpainting, setInpainting] = useState(false)
+  const brushRef = useRef<MaskBrushHandle>(null)
+
   const supabase = createClient()
 
   useEffect(() => {
@@ -36,7 +46,46 @@ export default function GenerationDetailModal({ generation, onClose, onUpdated, 
     setEditedPrompt(generation.prompt)
     setEditing(false)
     setError(null)
+    setBrushMode(false)
+    setHasMask(false)
+    setInpaintPrompt('')
   }, [generation.id])
+
+  async function inpaint() {
+    if (!brushRef.current?.hasMask() || !inpaintPrompt.trim()) return
+    const maskDataUrl = brushRef.current.getMaskDataUrl()
+    if (!maskDataUrl) return
+
+    setInpainting(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/inpaint-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          generationId: g.id,
+          prompt: inpaintPrompt.trim(),
+          maskDataUrl,
+          model: g.model,
+        }),
+      })
+      if (!res.ok) {
+        const { error: msg } = await res.json().catch(() => ({ error: 'Onbekende fout' }))
+        throw new Error(msg)
+      }
+      const newGen: Generation = await res.json()
+      onRegenerated(newGen)
+      setG(newGen)
+      setEditedPrompt(newGen.prompt)
+      setBrushMode(false)
+      setHasMask(false)
+      setInpaintPrompt('')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Inpaint mislukt')
+    } finally {
+      setInpainting(false)
+    }
+  }
 
   // Load reference images
   useEffect(() => {
@@ -153,20 +202,87 @@ export default function GenerationDetailModal({ generation, onClose, onUpdated, 
       >
         {/* Image preview */}
         <div className="flex-1 bg-gray-900 flex items-center justify-center p-6 min-w-0 relative">
-          {regenerating ? (
+          {regenerating || inpainting ? (
             <div className="flex flex-col items-center gap-3 text-white/80">
               <IbizzMark size={48} animate className="text-[#EB4628]" />
-              <span className="text-sm">Genereren…</span>
+              <span className="text-sm">{inpainting ? 'Gebied opnieuw genereren…' : 'Genereren…'}</span>
             </div>
           ) : g.result_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={g.result_url}
-              alt={g.prompt}
-              className="max-w-full max-h-[82vh] object-contain rounded-lg"
+            <MaskBrushOverlay
+              ref={brushRef}
+              imageUrl={g.result_url}
+              active={brushMode}
+              brushSize={brushSize}
+              imageClassName="max-w-full max-h-[82vh] object-contain rounded-lg block"
+              onChange={() => setHasMask(brushRef.current?.hasMask() ?? false)}
             />
           ) : (
             <div className="text-white/40 text-sm">Geen output</div>
+          )}
+
+          {/* Brush toolbar — top center, glass styling */}
+          {brushMode && g.result_url && !inpainting && (
+            <div
+              className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-3 px-4 py-2.5 rounded-2xl"
+              style={{
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08))',
+                backdropFilter: 'blur(16px) saturate(1.6)',
+                WebkitBackdropFilter: 'blur(16px) saturate(1.6)',
+                border: '1px solid rgba(255,255,255,0.25)',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
+              }}
+            >
+              <div className="flex items-center gap-2 text-white/90">
+                <Brush size={13} />
+                <span className="text-xs font-semibold">Penseel</span>
+              </div>
+              <div className="w-px h-5 bg-white/20" />
+              <div className="flex items-center gap-2 text-white/80 text-xs">
+                <span>Grootte</span>
+                <input
+                  type="range"
+                  min={15}
+                  max={150}
+                  value={brushSize}
+                  onChange={e => setBrushSize(Number(e.target.value))}
+                  className="w-28 accent-[#EB4628]"
+                />
+                <span className="w-7 text-right tabular-nums">{brushSize}</span>
+              </div>
+              <div className="w-px h-5 bg-white/20" />
+              <button
+                onClick={() => brushRef.current?.clear()}
+                disabled={!hasMask}
+                className="flex items-center gap-1 text-xs text-white/80 hover:text-white disabled:opacity-30 transition-opacity"
+              >
+                <Trash2 size={11} />
+                Wissen
+              </button>
+              <button
+                onClick={() => { setBrushMode(false); brushRef.current?.clear() }}
+                className="text-xs text-white/60 hover:text-white transition-colors"
+              >
+                Sluiten
+              </button>
+            </div>
+          )}
+
+          {/* Brush trigger — bottom right, when not active and image exists */}
+          {!brushMode && g.result_url && !regenerating && !inpainting && g.status !== 'approved' && (
+            <button
+              onClick={() => setBrushMode(true)}
+              className="absolute bottom-4 right-4 flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-white transition-all hover:scale-105"
+              style={{
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.22), rgba(255,255,255,0.1))',
+                backdropFilter: 'blur(14px) saturate(1.6)',
+                WebkitBackdropFilter: 'blur(14px) saturate(1.6)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.25)',
+              }}
+            >
+              <Brush size={12} />
+              Bewerk gebied
+            </button>
           )}
         </div>
 
@@ -255,6 +371,40 @@ export default function GenerationDetailModal({ generation, onClose, onUpdated, 
                 </p>
               )}
             </div>
+
+            {/* Inpaint prompt — zichtbaar bij brush mode */}
+            {brushMode && (
+              <div className="rounded-2xl p-4 border border-indigo-100 bg-gradient-to-br from-indigo-50/60 to-white">
+                <div className="flex items-center gap-2 mb-2">
+                  <Brush size={13} className="text-indigo-500" />
+                  <p className="text-[11px] font-semibold text-indigo-700 uppercase tracking-wide">
+                    Beeld aanpassen
+                  </p>
+                </div>
+                <p className="text-[11px] text-gray-500 mb-3 leading-relaxed">
+                  {hasMask
+                    ? 'Het paarse gebied is je primaire aanpassing. Je kan ook globale wijzigingen toevoegen — bijv. ook achtergrond of stijl. Brush gebied heeft prioriteit.'
+                    : 'Schilder het gebied waar je een specifieke aanpassing wil. Globale wijzigingen kun je ook in de prompt zetten.'}
+                </p>
+                <textarea
+                  value={inpaintPrompt}
+                  onChange={e => setInpaintPrompt(e.target.value)}
+                  placeholder="Bijv. haar zwart maken, en achtergrond paars"
+                  rows={3}
+                  disabled={!hasMask}
+                  className="w-full border border-indigo-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-500 resize-none bg-white disabled:bg-gray-50 disabled:text-gray-400"
+                />
+                <button
+                  onClick={inpaint}
+                  disabled={!hasMask || !inpaintPrompt.trim() || inpainting}
+                  className="w-full mt-3 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold text-white hover:opacity-90 disabled:opacity-40 transition-opacity"
+                  style={{ backgroundColor: '#EB4628' }}
+                >
+                  {inpainting ? <Loader2 size={13} className="animate-spin" /> : <IbizzMark size={13} />}
+                  {inpainting ? 'Aanpassen…' : 'Pas beeld aan'}
+                </button>
+              </div>
+            )}
 
             {error && (
               <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 rounded-xl">

@@ -8,6 +8,8 @@ import type { Project } from '@ibizz/supabase'
 import { TopBar } from '@ibizz/ui'
 import type { AppId } from '@ibizz/ui'
 import { useAuth } from '@/lib/auth'
+import Sidebar, { type NotulistView } from '@/components/Sidebar'
+import ArchiveView from '@/components/ArchiveView'
 
 const APP_URLS: Record<AppId, string> = {
   friday: process.env.NEXT_PUBLIC_FRIDAY_URL ?? 'http://localhost:3000',
@@ -27,6 +29,7 @@ declare global {
 
 export default function NotulistClient() {
   const { user, userName, signOut } = useAuth()
+  const [view, setView] = useState<NotulistView>('recorder')
   const [phase, setPhase] = useState<Phase>('idle')
   const [transcript, setTranscript] = useState('')
   const [interimText, setInterimText] = useState('')
@@ -289,7 +292,7 @@ export default function NotulistClient() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
 
       <TopBar
         currentApp="notulist"
@@ -297,7 +300,7 @@ export default function NotulistClient() {
         userName={userName}
         userColor="#EB4628"
         onSignOut={signOut}
-        extras={phase !== 'idle' ? (
+        extras={view === 'recorder' && phase !== 'idle' ? (
           <button
             onClick={reset}
             className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors px-2"
@@ -308,8 +311,16 @@ export default function NotulistClient() {
         ) : null}
       />
 
-      {/* ── Content ───────────────────────────────────────── */}
-      <main className="flex-1 flex flex-col items-center py-12 px-4">
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar view={view} onSelect={setView} />
+
+        {view === 'archive' ? (
+          <main className="flex-1 overflow-hidden bg-gray-50">
+            <ArchiveView />
+          </main>
+        ) : (
+      /* ── Recorder content ─────────────────────────────── */
+      <main className="flex-1 overflow-y-auto flex flex-col items-center py-12 px-4">
 
         {/* Error banner */}
         {error && (
@@ -633,6 +644,8 @@ export default function NotulistClient() {
           </div>
         )}
       </main>
+        )}
+      </div>
     </div>
   )
 }

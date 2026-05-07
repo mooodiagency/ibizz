@@ -44,10 +44,14 @@ export type ReferenceImage = {
   mimeType: string
 }
 
+/** Gemini-supported aspect ratios. Andere providers negeren dit. */
+export type AspectRatio = '1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '4:5' | '5:4' | '9:16' | '16:9' | '21:9'
+
 export type GenerateInput = {
   prompt: string
   references?: ReferenceImage[]
   model: ModelId
+  aspectRatio?: AspectRatio
 }
 
 export type GenerateOutput = {

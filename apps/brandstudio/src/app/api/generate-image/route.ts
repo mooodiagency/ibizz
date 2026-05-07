@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
 import { createServerClient } from '@supabase/ssr'
-import { getProvider } from '@ibizz/ai-image'
+import { getProvider, nearestGeminiAspectRatio } from '@ibizz/ai-image'
 import type { ModelId } from '@ibizz/ai-image'
 import type { Database } from '@ibizz/supabase'
 import { cookies } from 'next/headers'
@@ -46,11 +46,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'brandId, prompt en model zijn verplicht' }, { status: 400 })
     }
 
-    // Verrijk de prompt met aspect ratio hint (Gemini volgt deze niet exact, daarna resizen we)
-    let effectivePrompt = prompt.trim()
-    if (width && height) {
-      effectivePrompt = `${effectivePrompt}\n\nGenerate at aspect ratio ${width}:${height} (${width}×${height} pixels).`
-    }
+    const effectivePrompt = prompt.trim()
+    // Bepaal aspect ratio voor Gemini (verplicht door API ondersteund — niet via prompt tekst)
+    const aspectRatio = (width && height) ? nearestGeminiAspectRatio(width, height) : undefined
 
     // Provider key check
     if (model === 'gemini' && !getEnv('GEMINI_API_KEY')) {
@@ -84,7 +82,7 @@ export async function POST(req: NextRequest) {
 
     // Generate
     const provider = getProvider(model)
-    const result = await provider.generate({ prompt: effectivePrompt, references, model })
+    const result = await provider.generate({ prompt: effectivePrompt, references, model, aspectRatio })
 
     // Upload naar Storage
     const buf = Buffer.from(result.imageBase64, 'base64')

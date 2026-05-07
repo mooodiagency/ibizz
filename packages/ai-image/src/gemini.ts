@@ -14,7 +14,7 @@ export class GeminiProvider implements ImageGenProvider {
   readonly id = 'gemini' as const
   constructor(private apiKey: string) {}
 
-  async generate({ prompt, references }: GenerateInput): Promise<GenerateOutput> {
+  async generate({ prompt, references, aspectRatio }: GenerateInput): Promise<GenerateOutput> {
     const parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = []
     parts.push({ text: prompt })
 
@@ -25,13 +25,18 @@ export class GeminiProvider implements ImageGenProvider {
       }
     }
 
+    const generationConfig: Record<string, unknown> = { responseModalities: ['IMAGE'] }
+    if (aspectRatio) {
+      generationConfig.imageConfig = { aspectRatio }
+    }
+
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${this.apiKey}`
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts }],
-        generationConfig: { responseModalities: ['IMAGE'] },
+        generationConfig,
       }),
     })
 

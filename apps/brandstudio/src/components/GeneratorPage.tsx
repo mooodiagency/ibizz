@@ -28,12 +28,18 @@ export default function GeneratorPage() {
     width: 1080,
     height: 1080,
   }])
-  const primaryFormat = selectedFormats[0]
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [generations, setGenerations] = useState<Generation[]>([])
   const [activeGenId, setActiveGenId] = useState<string | null>(null)
   const supabase = createClient()
+
+  // Master format = grootste op pixel-aantal. Daarop genereert Gemini.
+  // Andere formaten zijn voor export (resize/crop) — niet voor extra generaties.
+  const masterFormat = selectedFormats.reduce(
+    (max, f) => (f.width * f.height > max.width * max.height ? f : max),
+    selectedFormats[0],
+  )
 
   // Load past generations for current brand
   const loadGenerations = useCallback(async () => {
@@ -68,9 +74,10 @@ export default function GeneratorPage() {
   }, [current?.id])
 
   async function generate() {
-    if (!current || !prompt.trim()) return
+    if (!current || !prompt.trim() || !masterFormat) return
     setError(null)
     setGenerating(true)
+
     try {
       const res = await fetch('/api/generate-image', {
         method: 'POST',
@@ -80,8 +87,8 @@ export default function GeneratorPage() {
           prompt: prompt.trim(),
           model,
           referenceImageIds: refIds,
-          width: primaryFormat.width,
-          height: primaryFormat.height,
+          width: masterFormat.width,
+          height: masterFormat.height,
         }),
       })
       if (!res.ok) {
@@ -185,38 +192,41 @@ export default function GeneratorPage() {
                 Formaten ({selectedFormats.length})
               </label>
               <span className="text-[10px] text-gray-400">
-                Eerste = aspect ratio voor AI · alle worden geëxporteerd
+                Master = grootste · andere worden bij export afgeleid
               </span>
             </div>
             <div className="border border-gray-200 rounded-xl p-3 bg-white">
               <div className="flex flex-wrap gap-2 mb-2">
-                {selectedFormats.map((f, i) => (
-                  <div
-                    key={f.id}
-                    className="inline-flex items-center gap-2 rounded-lg px-2.5 py-1.5"
-                    style={{
-                      backgroundColor: i === 0 ? 'rgba(235, 70, 40, 0.08)' : '#f3f4f6',
-                      border: i === 0 ? '1px solid rgba(235, 70, 40, 0.2)' : '1px solid transparent',
-                    }}
-                  >
-                    {i === 0 && (
-                      <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color: '#EB4628' }}>
-                        Primair
-                      </span>
-                    )}
-                    <FormatBadge width={f.width} height={f.height} />
-                    <span className="text-xs font-semibold text-gray-800">{f.name}</span>
-                    <span className="text-[10px] text-gray-400">{f.width}×{f.height}</span>
-                    {selectedFormats.length > 1 && (
-                      <button
-                        onClick={() => setSelectedFormats(prev => prev.filter(x => x.id !== f.id))}
-                        className="text-gray-400 hover:text-red-500 ml-0.5"
-                      >
-                        <X size={11} />
-                      </button>
-                    )}
-                  </div>
-                ))}
+                {selectedFormats.map(f => {
+                  const isMaster = masterFormat && f.id === masterFormat.id
+                  return (
+                    <div
+                      key={f.id}
+                      className="inline-flex items-center gap-2 rounded-lg px-2.5 py-1.5"
+                      style={{
+                        backgroundColor: isMaster ? 'rgba(235, 70, 40, 0.08)' : '#f3f4f6',
+                        border: isMaster ? '1px solid rgba(235, 70, 40, 0.2)' : '1px solid transparent',
+                      }}
+                    >
+                      {isMaster && (
+                        <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color: '#EB4628' }}>
+                          Master
+                        </span>
+                      )}
+                      <FormatBadge width={f.width} height={f.height} />
+                      <span className="text-xs font-semibold text-gray-800">{f.name}</span>
+                      <span className="text-[10px] text-gray-400">{f.width}×{f.height}</span>
+                      {selectedFormats.length > 1 && (
+                        <button
+                          onClick={() => setSelectedFormats(prev => prev.filter(x => x.id !== f.id))}
+                          className="text-gray-400 hover:text-red-500 ml-0.5"
+                        >
+                          <X size={11} />
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
               <button
                 onClick={() => setFormatPickerOpen(true)}
@@ -240,7 +250,7 @@ export default function GeneratorPage() {
               <span className="block text-[11px] mb-1.5 invisible select-none" aria-hidden>spacer</span>
               <button
                 onClick={generate}
-                disabled={generating || !prompt.trim()}
+                disabled={generating || !prompt.trim() || !masterFormat}
                 className="flex-1 flex items-center justify-center gap-2.5 px-6 rounded-xl text-base font-bold text-white hover:opacity-90 transition-opacity disabled:opacity-40 shadow-md"
                 style={{ backgroundColor: '#EB4628' }}
               >
