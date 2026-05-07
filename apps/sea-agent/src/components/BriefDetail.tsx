@@ -412,20 +412,47 @@ function ExportView({ brief, research, strategy }: {
         </a>
       </section>
 
-      {/* Roadmap: Google Ads API */}
-      <section className="bg-white border border-dashed border-gray-200 rounded-2xl p-5 flex items-start gap-4">
-        <div className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <Sparkles size={15} className="text-gray-400" />
+      {/* Roadmap: Google integraties */}
+      <section className="bg-white border border-dashed border-gray-200 rounded-2xl p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Sparkles size={14} className="text-gray-400" />
+          <h3 className="text-sm font-semibold text-gray-700">Toekomstige Google koppelingen</h3>
         </div>
-        <div>
-          <p className="text-sm font-semibold text-gray-700 mb-0.5">
-            Directe Google Ads API koppeling — coming soon
-          </p>
-          <p className="text-xs text-gray-400 leading-relaxed">
-            In een volgende sprint bouwen we een directe OAuth2 koppeling met de Google Ads API, zodat campagnes automatisch worden aangemaakt in het live account — zonder handmatige import via Editor. Dit vereist een Google developer token en OAuth credentials per klant.
-          </p>
+        <div className="space-y-3">
+          <RoadmapItem
+            order="1"
+            title="Google Analytics 4 API"
+            description="Pull conversies, e-commerce data en doelgroepen voor rijkere keyword research en dashboards. Read-only, geen Google review nodig."
+          />
+          <RoadmapItem
+            order="2"
+            title="Google Ads API"
+            description="Push campagnes, ad groups, keywords en negatives direct naar het live account — geen handmatige Editor import meer. Vereist developer token (review proces)."
+          />
+          <RoadmapItem
+            order="3"
+            title="Google Tag Manager API"
+            description="Tracking tags automatisch instellen en valideren bij elke nieuwe klant. Alerts bij flatlines en tracking failures."
+          />
         </div>
+        <p className="text-[11px] text-gray-400 italic mt-4 pt-3 border-t border-gray-100">
+          Volgorde optimaal voor minimale drempel — zie ROADMAP.md voor details.
+        </p>
       </section>
+    </div>
+  )
+}
+
+function RoadmapItem({ order, title, description }: { order: string; title: string; description: string }) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500 mt-0.5">
+        {order}
+      </span>
+      <div>
+        <p className="text-xs font-semibold text-gray-700">{title}</p>
+        <p className="text-[11px] text-gray-400 leading-relaxed">{description}</p>
+      </div>
     </div>
   )
 }
