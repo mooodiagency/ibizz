@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { X, Loader2 } from 'lucide-react'
+import { X, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
 import type { Brand, SeaBrief } from '@ibizz/supabase'
 import { useAuth } from '@/lib/auth'
+import { checkBriefBudget } from '@/lib/budget-thresholds'
 
 type Props = {
   onClose: () => void
@@ -128,6 +129,24 @@ export default function NewBriefModal({ onClose, onCreated }: Props) {
               />
             </Field>
           </div>
+
+          {(() => {
+            const monthly = budget ? parseInt(budget, 10) : null
+            const check = checkBriefBudget(monthly)
+            if (!check || check.severity === 'ok') return null
+            return (
+              <div
+                className={`flex items-start gap-2 rounded-xl px-3 py-2 text-xs ${
+                  check.severity === 'critical'
+                    ? 'bg-red-50 border border-red-200 text-red-800'
+                    : 'bg-amber-50 border border-amber-200 text-amber-800'
+                }`}
+              >
+                <AlertCircle size={12} className="flex-shrink-0 mt-0.5" />
+                <span>{check.message} <span className="italic opacity-80">Aanbevolen: minimaal €{check.recommended}/maand.</span></span>
+              </div>
+            )
+          })()}
 
           <Field label="Location">
             <input

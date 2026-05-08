@@ -11,6 +11,7 @@ import AdCopyView from './AdCopyView'
 import NegativesView from './NegativesView'
 import { strategyStatus, keywordsStatus, adCopyStatus, negativesStatus, STATUS_DOT_COLOR, STATUS_LABEL } from '@/lib/step-status'
 import type { StepStatus } from '@/lib/step-status'
+import { checkBriefBudget } from '@/lib/budget-thresholds'
 
 type Step = 'overview' | 'strategy' | 'keywords' | 'adcopy' | 'negatives' | 'export'
 
@@ -237,6 +238,8 @@ function RailItem({ icon, label, status, active, onClick, sublabel }: {
 }
 
 function OverviewSection({ brief, brand }: { brief: SeaBrief; brand?: Brand }) {
+  const budgetCheck = checkBriefBudget(brief.monthly_budget)
+
   return (
     <section className="bg-white border border-gray-200 rounded-2xl p-6">
       <div className="flex items-center gap-2 mb-4">
@@ -251,6 +254,23 @@ function OverviewSection({ brief, brand }: { brief: SeaBrief; brand?: Brand }) {
         <Field label="Location" value={brief.location} />
         <Field label="Created" value={format(new Date(brief.created_at), 'd MMM yyyy')} />
       </div>
+
+      {budgetCheck && budgetCheck.severity !== 'ok' && (
+        <div
+          className={`mt-4 flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs ${
+            budgetCheck.severity === 'critical'
+              ? 'bg-red-50 border border-red-200 text-red-800'
+              : 'bg-amber-50 border border-amber-200 text-amber-800'
+          }`}
+        >
+          <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold mb-0.5">Budget waarschuwing</p>
+            <p>{budgetCheck.message}</p>
+            <p className="mt-1 italic opacity-80">Aanbeveling: minimaal €{budgetCheck.recommended}/maand.</p>
+          </div>
+        </div>
+      )}
 
       {brief.goal && (
         <div className="mt-5 pt-5 border-t border-gray-100">

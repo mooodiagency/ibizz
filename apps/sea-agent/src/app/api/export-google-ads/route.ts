@@ -38,9 +38,11 @@ const CAMPAIGN_TYPE_LABEL: Record<string, string> = {
 // Column order for Google Ads Editor
 const HEADERS = [
   'Campaign', 'Campaign type', 'Campaign status', 'Campaign daily budget', 'Bid strategy type', 'Target CPA',
+  'Networks', 'Location targeting type',
   'Ad group', 'Ad group status',
   'Keyword', 'Match type', 'Status',
   'Negative keyword', 'Negative keyword Match type',
+  'Device', 'Bid adj.',
   'Ad type',
   'Headline 1', 'Headline 2', 'Headline 3', 'Headline 4', 'Headline 5',
   'Headline 6', 'Headline 7', 'Headline 8', 'Headline 9', 'Headline 10',
@@ -102,6 +104,10 @@ export async function POST(req: NextRequest) {
       const bidStrategy = brief.target_cpa ? 'Target CPA' : 'Maximize conversions'
       const targetCpa = brief.target_cpa ?? ''
 
+      // Networks: Search = Google search only (no Search Partners, no Display).
+      // PMax = all by default, but Apps are excluded later via device row.
+      const networks = campaign.type === 'Search' ? 'Google search' : 'All'
+
       // ── Campaign row ──────────────────────────────────────────────
       rows.push({
         'Campaign': campaign.name,
@@ -110,10 +116,37 @@ export async function POST(req: NextRequest) {
         'Campaign daily budget': dailyBudget,
         'Bid strategy type': bidStrategy,
         'Target CPA': targetCpa,
+        'Networks': networks,
+        // ibizz standaard: targeting op fysieke aanwezigheid, niet op interesse
+        'Location targeting type': 'Presence',
       })
 
-      // Performance Max: no ad groups / keywords in standard format
-      if (campaign.type === 'Performance Max') continue
+      // ── Device exclusions (ibizz standaard) ──────────────────────
+      // Tablets standaard uit — leveren zelden conversies
+      rows.push({
+        'Campaign': campaign.name,
+        'Device': 'Tablet',
+        'Bid adj.': '-100%',
+      })
+
+      // Performance Max: Apps excluderen, en geen ad groups / keywords in standaard format
+      if (campaign.type === 'Performance Max') {
+        // Apps uitsluiten — vrijwel nooit directe conversies
+        rows.push({
+          'Campaign': campaign.name,
+          'Device': 'Mobile App',
+          'Bid adj.': '-100%',
+        })
+        // PMax campaign-level negatives still need to be added below — fall through skipped
+        for (const neg of allNegatives) {
+          rows.push({
+            'Campaign': campaign.name,
+            'Negative keyword': neg.keyword,
+            'Negative keyword Match type': MATCH_LABEL[neg.match_type] ?? 'Broad',
+          })
+        }
+        continue
+      }
 
       for (const adGroup of campaign.ad_groups) {
         // ── Ad group row ──────────────────────────────────────────
@@ -168,9 +201,11 @@ export async function POST(req: NextRequest) {
     // Column widths
     ws['!cols'] = [
       { wch: 32 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 22 }, { wch: 12 },
+      { wch: 14 }, { wch: 22 },
       { wch: 28 }, { wch: 14 },
       { wch: 35 }, { wch: 10 }, { wch: 10 },
       { wch: 35 }, { wch: 26 },
+      { wch: 14 }, { wch: 10 },
       { wch: 22 },
       ...Array(15).fill({ wch: 32 }),
       ...Array(4).fill({ wch: 90 }),

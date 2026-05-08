@@ -129,9 +129,16 @@ REQUIREMENTS:
 1. Always create 1 BRANDED campaign with 1-2 ad groups (3-5 keywords each).
 2. Always create 1 NON-BRANDED campaign with 4-8 STAG ad groups (10-15 keywords each).
 3. If website content is rich, optionally suggest a Performance Max campaign with 1 asset group.
-4. Per keyword: text (Dutch), match_type (broad/phrase/exact), intent (informational/commercial/transactional/branded).
-5. Use sensible match-type mix: branded → exact/phrase, non-branded high-intent → phrase/exact, broad research → broad.
+4. Per keyword: text (Dutch), match_type (phrase/exact preferred, broad ONLY when justified), intent (informational/commercial/transactional/branded).
+5. MATCH TYPE STRATEGY (ibizz standard — based on agency expertise):
+   - Default to PHRASE + EXACT match. Often use the SAME keyword in both phrase and exact for coverage.
+   - AVOID broad match — too many irrelevant impressions, Google over-steers with it.
+   - Branded → exact (primary) + phrase (variations).
+   - Non-branded transactional → phrase + exact (both, same keyword).
+   - Non-branded commercial → phrase preferred.
+   - Use broad ONLY when the keyword is so niche that exact/phrase yields too little volume — and flag this clearly via the keyword text being a generic discovery term.
 6. Each ad group has a clear theme — keywords within MUST stay close to that theme (STAG principle).
+7. Focus ONLY on transactional and commercial intent keywords. Skip informational/navigational queries unless they are clearly purchase-driven.
 
 Return ONLY valid JSON. No markdown fences.
 

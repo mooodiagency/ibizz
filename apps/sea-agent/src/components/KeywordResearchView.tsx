@@ -3,10 +3,11 @@
 import { useState } from 'react'
 import {
   KeyRound, Loader2, AlertCircle, Globe, Check, XCircle, RotateCcw, ChevronDown, ChevronRight,
-  Edit2, Plus, Trash2, X, Save, BarChart3,
+  Edit2, Plus, Trash2, X, Save, BarChart3, AlertTriangle,
 } from 'lucide-react'
 import type { SeaKeywordResearch, SeaCampaign, SeaKeyword, SeaMatchType, SeaIntent } from '@ibizz/supabase'
 import { createClient } from '@ibizz/supabase'
+import Select from './Select'
 
 type Props = {
   briefId: string
@@ -186,6 +187,10 @@ export default function KeywordResearchView({ briefId, research, onUpdated }: Pr
   const campaigns = editing ? draftCampaigns : research.campaigns
   const totalKeywords = campaigns.reduce((sum, c) => sum + c.ad_groups.reduce((s, g) => s + g.keywords.length, 0), 0)
   const totalAdGroups = campaigns.reduce((sum, c) => sum + c.ad_groups.length, 0)
+  const broadCount = campaigns.reduce(
+    (sum, c) => sum + c.ad_groups.reduce((s, g) => s + g.keywords.filter(k => k.match_type === 'broad').length, 0),
+    0,
+  )
 
   return (
     <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
@@ -247,6 +252,16 @@ export default function KeywordResearchView({ briefId, research, onUpdated }: Pr
             Website context
           </p>
           <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">{research.scraped_summary}</p>
+        </div>
+      )}
+
+      {/* Broad match warning */}
+      {broadCount > 0 && (
+        <div className="mx-6 mt-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 text-xs text-amber-800">
+          <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" />
+          <div>
+            <strong>{broadCount}</strong> {broadCount === 1 ? 'keyword' : 'keywords'} op <strong>broad match</strong> — ibizz standaard is phrase + exact. Broad geeft vaak te veel irrelevante vertoningen. Overweeg om deze om te zetten of te verwijderen.
+          </div>
         </div>
       )}
 
@@ -516,27 +531,29 @@ function KeywordRow({ keyword, editing, onChange, onRemove }: {
           value={keyword.text}
           onChange={e => onChange({ ...keyword, text: e.target.value })}
           placeholder="keyword"
-          className="flex-1 text-sm border border-gray-200 rounded px-2 py-1 outline-none focus:border-[#EB4628]"
+          className="flex-1 text-sm border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-[#EB4628]"
         />
-        <select
+        <Select
           value={keyword.match_type}
-          onChange={e => onChange({ ...keyword, match_type: e.target.value as SeaMatchType })}
-          className="text-xs border border-gray-200 rounded px-2 py-1 outline-none bg-white"
-        >
-          <option value="broad">broad</option>
-          <option value="phrase">phrase</option>
-          <option value="exact">exact</option>
-        </select>
-        <select
+          onChange={v => onChange({ ...keyword, match_type: v as SeaMatchType })}
+          options={[
+            { value: 'phrase', label: 'phrase' },
+            { value: 'exact', label: 'exact' },
+            { value: 'broad', label: 'broad ⚠' },
+          ]}
+          className="w-24"
+        />
+        <Select
           value={keyword.intent}
-          onChange={e => onChange({ ...keyword, intent: e.target.value as SeaIntent })}
-          className="text-xs border border-gray-200 rounded px-2 py-1 outline-none bg-white"
-        >
-          <option value="branded">branded</option>
-          <option value="transactional">transactional</option>
-          <option value="commercial">commercial</option>
-          <option value="informational">informational</option>
-        </select>
+          onChange={v => onChange({ ...keyword, intent: v as SeaIntent })}
+          options={[
+            { value: 'branded', label: 'branded' },
+            { value: 'transactional', label: 'transactional' },
+            { value: 'commercial', label: 'commercial' },
+            { value: 'informational', label: 'informational' },
+          ]}
+          className="w-32"
+        />
         <button onClick={onRemove} className="text-gray-400 hover:text-red-500 p-1">
           <X size={11} />
         </button>
@@ -549,7 +566,17 @@ function KeywordRow({ keyword, editing, onChange, onRemove }: {
   return (
     <div className="flex items-center gap-2 px-2 py-1.5">
       <span className="text-sm text-gray-800 flex-1">{keyword.text}</span>
-      <span className="text-[10px] font-mono text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{keyword.match_type}</span>
+      <span
+        className={`text-[10px] font-mono px-1.5 py-0.5 rounded inline-flex items-center gap-1 ${
+          keyword.match_type === 'broad'
+            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+            : 'bg-gray-100 text-gray-400'
+        }`}
+        title={keyword.match_type === 'broad' ? 'Broad match — let op: vaak te veel irrelevante vertoningen. Phrase + exact wordt aangeraden.' : undefined}
+      >
+        {keyword.match_type === 'broad' && <AlertTriangle size={9} />}
+        {keyword.match_type}
+      </span>
       <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${INTENT_COLORS[keyword.intent]}`}>
         {keyword.intent}
       </span>
