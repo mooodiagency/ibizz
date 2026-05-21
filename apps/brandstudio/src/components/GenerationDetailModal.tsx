@@ -54,6 +54,7 @@ export default function GenerationDetailModal({ generation, onClose, onUpdated, 
   async function inpaint() {
     if (!brushRef.current?.hasMask() || !inpaintPrompt.trim()) return
     const maskDataUrl = brushRef.current.getMaskDataUrl()
+    const openaiMaskDataUrl = brushRef.current.getOpenAIMaskDataUrl()
     if (!maskDataUrl) return
 
     setInpainting(true)
@@ -66,6 +67,7 @@ export default function GenerationDetailModal({ generation, onClose, onUpdated, 
           generationId: g.id,
           prompt: inpaintPrompt.trim(),
           maskDataUrl,
+          openaiMaskDataUrl,
           model: g.model,
         }),
       })

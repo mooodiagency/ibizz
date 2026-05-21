@@ -7,6 +7,12 @@ export type MaskBrushHandle = {
   hasMask: () => boolean
   /** Returns the mask as a black/white PNG dataURL (white = selected). null if empty. */
   getMaskDataUrl: () => string | null
+  /**
+   * Returns the mask in OpenAI gpt-image-1 format: PNG with alpha channel where
+   * the selected (painted) area is transparent (alpha=0) and the rest is opaque.
+   * null if empty.
+   */
+  getOpenAIMaskDataUrl: () => string | null
 }
 
 type Props = {
@@ -73,8 +79,33 @@ const MaskBrushOverlay = forwardRef<MaskBrushHandle, Props>(function MaskBrushOv
     hasMask: () => hasContent,
     getMaskDataUrl: () => {
       if (!maskCanvasRef.current || !hasContent) return null
-      // Convert internal mask (already black bg + white strokes) to PNG
       return maskCanvasRef.current.toDataURL('image/png')
+    },
+    getOpenAIMaskDataUrl: () => {
+      const src = maskCanvasRef.current
+      if (!src || !hasContent) return null
+
+      // Maak een nieuwe canvas en bouw RGBA waarin witte gebieden alpha=0 worden
+      const out = document.createElement('canvas')
+      out.width = src.width
+      out.height = src.height
+      const srcCtx = src.getContext('2d')
+      const outCtx = out.getContext('2d')
+      if (!srcCtx || !outCtx) return null
+
+      const img = srcCtx.getImageData(0, 0, src.width, src.height)
+      const dst = outCtx.createImageData(src.width, src.height)
+      for (let i = 0; i < img.data.length; i += 4) {
+        const r = img.data[i]
+        const isWhite = r > 128
+        // OpenAI mask: alpha=0 op te vervangen gebied (waar gebruiker schilderde)
+        dst.data[i] = 0
+        dst.data[i + 1] = 0
+        dst.data[i + 2] = 0
+        dst.data[i + 3] = isWhite ? 0 : 255
+      }
+      outCtx.putImageData(dst, 0, 0)
+      return out.toDataURL('image/png')
     },
   }))
 

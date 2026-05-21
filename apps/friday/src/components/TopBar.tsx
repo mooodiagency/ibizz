@@ -17,6 +17,7 @@ const APP_URLS: Record<AppId, string> = {
   notulist: process.env.NEXT_PUBLIC_NOTULIST_URL ?? 'http://localhost:3001',
   brandstudio: process.env.NEXT_PUBLIC_BRANDSTUDIO_URL ?? 'http://localhost:3002',
   'sea-agent': process.env.NEXT_PUBLIC_SEA_AGENT_URL ?? 'http://localhost:3003',
+  'seo-agent': process.env.NEXT_PUBLIC_SEO_AGENT_URL ?? 'http://localhost:3005',
 }
 
 export default function TopBar() {

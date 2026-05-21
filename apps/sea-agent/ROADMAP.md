@@ -21,20 +21,25 @@ Status van de SEA Agent en wat er nog komt. Bijgewerkt op basis van de kennisint
 Op basis van interviewinzichten — geen externe koppelingen nodig.
 
 ### Match types & defaults
-- [ ] Broad match standaard uit, alleen exact + phrase
-- [ ] Waarschuwing als broad wordt gekozen
-- [ ] Default match type per intent (transactional → exact, commercial → phrase)
+- [x] Broad match standaard uit, alleen exact + phrase
+- [x] Waarschuwing als broad wordt gekozen (banner + amber badge)
+- [x] AI prompt prefereert phrase + exact
 
 ### Budget validatie
-- [ ] Drempels per campaign type:
+- [x] Drempels per campaign type (in lib/budget-thresholds.ts):
   - Search: minimum €10/dag
   - Performance Max: minimum €20/dag
   - Demand Gen: minimum €10.000/maand
   - Algemeen: niet onder €5/dag
-- [ ] CPA helper op basis van product marge
-  - €50-€150 producten → max CPA ~€25
-  - <€50 producten → max CPA ~€10
-- [ ] Waarschuwing bij te lage budget/CPA verhouding
+- [x] CPA helper op basis van product marge (recommendedMaxCpa)
+- [x] Waarschuwing in Overview én NewBriefModal
+
+### Targeting (in export)
+- [x] Locatie targeting "Presence" (aanwezigheid) ipv interesse
+- [x] Tablets uit (-100% bid adj.)
+- [x] Apps uit in PMax (-100% bid adj.)
+- [x] Networks = Google search only voor Search campagnes
+- [ ] Demografische uitsluitingen per brief (leeftijd, geslacht)
 
 ### Ad copy
 - [ ] A/B varianten per ad group: "hard" (actiegericht) + "soft" (merkverhaal)
@@ -56,15 +61,56 @@ Op basis van interviewinzichten — geen externe koppelingen nodig.
   - tROAS alleen bij specifieke strategische doelen
 - [ ] Brand campaign concept (lage bid 1-2ct op eigen merknaam)
 
-### Targeting
-- [ ] Locatie targeting: standaard "aanwezigheid", niet "interesse"
-- [ ] Demografische uitsluitingen per brief (leeftijd, geslacht)
-- [ ] Device exclusions (tablets standaard uit)
-- [ ] Apps uitsluiten in PMax (standaard)
-
 ### Keyword cannibalisatie
 - [ ] Detectie: zelfde keyword in meerdere campaigns/ad groups
 - [ ] Waarschuwing in UI bij conflict
+
+---
+
+## 🎯 Sprint 7.5 — SEA specialist feedback (sessie 18 mei)
+
+Punten uit de demo-sessie met de SEA specialisten.
+
+### Locatie targeting uitbreiden
+- [ ] Datamodel: brief.location → structured (type: 'radius' | 'postcodes' | 'coordinates')
+- [ ] UI: postcodes invoeren + coördinaten + straal
+- [ ] Export: juiste Google Ads Editor locatie rows per type
+
+### Ad copy editor verbeteringen
+- [ ] **Karakter-counter** in textarea (headlines max 30, descriptions max 90)
+- [ ] Live waarschuwing bij overschrijden + harde stop
+- [ ] Hoofdlettergebruik validatie (geen ALL CAPS, Title Case helpen)
+
+### LLM keuze + benchmarking
+- [ ] LLM picker per stap (Claude / OpenAI / Gemini)
+- [ ] Default per stap configureerbaar
+- [ ] A/B test infrastructuur: zelfde brief × meerdere LLM's → vergelijk output
+- [ ] Test inzicht: welk model presteert het best voor Search-campagnes
+
+### Chat feedback per stap
+- [ ] "Chat met AI" panel op elke pipeline stap
+- [ ] Gebruiker kan extra context/feedback geven → AI itereert
+- [ ] Bewaart conversatie-history per brief-stap
+
+### Optimalisatie bestaande campagnes
+- [ ] Pull bestaande Google Ads campagne data (vereist Google Ads API)
+- [ ] AI analyseert performance + stelt verbeteringen voor
+- [ ] Apart pipeline-type: "Optimize" naast "Create new"
+
+### Concurrentie- & kostprijs analyse
+- [ ] Onderzoek: Google Ads Keyword Planner API ipv Ahrefs/SEMrush
+- [ ] SERP analyse: automatisch concurrent posities ophalen
+- [ ] Concurrentmerken automatisch detecteren
+
+### Website analyse opschoning
+- [ ] Meta-data filtering in scrape-website (geen ads, scripts, etc.)
+- [ ] Betere extractie van product/service info
+- [ ] Cache scrapes per domain
+
+### Soli Power praktijkcase patronen
+- [x] PMax als basis op nichemarkten werkt
+- [ ] AI suggestie: ad scheduling (geen nacht/weekend voor bepaalde sectoren)
+- [ ] Doelgroep validatie tegen de strategie
 
 ---
 

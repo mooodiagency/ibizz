@@ -7,8 +7,10 @@ import {
 } from 'lucide-react'
 import type { SeaKeywordResearch, SeaCampaign, SeaAdCopy } from '@ibizz/supabase'
 import { createClient } from '@ibizz/supabase'
+import AIChatPanel from './AIChatPanel'
 
 type Props = {
+  briefId: string
   research: SeaKeywordResearch | null
   onUpdated: (r: SeaKeywordResearch) => void
 }
@@ -16,13 +18,35 @@ type Props = {
 const HL_LIMIT = 30
 const DESC_LIMIT = 90
 
+/**
+ * Karakter teller met kleur-feedback:
+ *  - grijs: < 80% van limiet
+ *  - amber: 80-100% van limiet (laatste 20% — let op)
+ *  - rood + vet: over limiet (maxLength voorkomt typen erover, maar bij plakken kan het)
+ */
+function CharCount({ length, limit, className = '' }: { length: number; limit: number; className?: string }) {
+  const ratio = length / limit
+  const over = length > limit
+  const close = ratio >= 0.8 && !over
+  const color = over
+    ? 'text-red-600 font-bold'
+    : close
+      ? 'text-amber-600 font-semibold'
+      : 'text-gray-400'
+  return (
+    <span className={`text-[10px] tabular-nums ${color} ${className}`} title={over ? `Boven limiet (${limit})` : undefined}>
+      {length}/{limit}
+    </span>
+  )
+}
+
 const SEGMENT_COLORS: Record<string, string> = {
   branded: 'bg-purple-100 text-purple-700',
   'non-branded': 'bg-blue-100 text-blue-700',
   pmax: 'bg-orange-100 text-orange-700',
 }
 
-export default function AdCopyView({ research, onUpdated }: Props) {
+export default function AdCopyView({ briefId, research, onUpdated }: Props) {
   const [generating, setGenerating] = useState(false)
   const [generatingGroup, setGeneratingGroup] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -131,6 +155,7 @@ export default function AdCopyView({ research, onUpdated }: Props) {
   }
 
   return (
+    <div className="space-y-4">
     <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
       {/* Header */}
       <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-2">
@@ -247,6 +272,19 @@ export default function AdCopyView({ research, onUpdated }: Props) {
         })}
       </div>
     </section>
+
+    {research && (
+      <AIChatPanel
+        briefId={briefId}
+        step="adcopy"
+        currentOutput={research.campaigns}
+        onIterated={async () => {
+          const { data } = await supabase.from('sea_keyword_research').select('*').eq('brief_id', briefId).single()
+          if (data) onUpdated(data as SeaKeywordResearch)
+        }}
+      />
+    )}
+    </div>
   )
 }
 
@@ -273,7 +311,7 @@ function ViewPanel({ ad, onEdit }: { ad: SeaAdCopy; onEdit: () => void }) {
             <li key={i} className="flex items-center gap-1.5 bg-white rounded px-2 py-1 border border-gray-100">
               <span className="text-gray-300 text-[10px] w-3">{i + 1}</span>
               <span className="flex-1 truncate text-gray-700" title={h}>{h}</span>
-              <span className={`text-[9px] ${h.length > HL_LIMIT ? 'text-red-500 font-bold' : 'text-gray-300'}`}>{h.length}</span>
+              <CharCount length={h.length} limit={HL_LIMIT} />
             </li>
           ))}
         </ol>
@@ -286,7 +324,7 @@ function ViewPanel({ ad, onEdit }: { ad: SeaAdCopy; onEdit: () => void }) {
             <li key={i} className="flex items-start gap-1.5 bg-white rounded px-2 py-1.5 border border-gray-100">
               <span className="text-gray-300 text-[10px] w-3 mt-0.5">{i + 1}</span>
               <span className="flex-1 text-gray-700 leading-relaxed">{d}</span>
-              <span className={`text-[9px] mt-0.5 ${d.length > DESC_LIMIT ? 'text-red-500 font-bold' : 'text-gray-300'}`}>{d.length}</span>
+              <CharCount length={d.length} limit={DESC_LIMIT} className="mt-0.5" />
             </li>
           ))}
         </ol>
@@ -319,9 +357,7 @@ function EditPanel({ ad, onChange, onCancel, onSave }: {
                 }}
                 className="flex-1 text-xs border border-gray-200 rounded px-2 py-1 outline-none focus:border-[#EB4628]"
               />
-              <span className={`text-[10px] w-6 text-right ${h.length > HL_LIMIT ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
-                {h.length}
-              </span>
+              <CharCount length={h.length} limit={HL_LIMIT} className="w-10 text-right" />
               <button
                 onClick={() => onChange({ ...ad, headlines: ad.headlines.filter((_, j) => j !== i) })}
                 className="text-gray-400 hover:text-red-500"
@@ -359,9 +395,7 @@ function EditPanel({ ad, onChange, onCancel, onSave }: {
                 }}
                 className="flex-1 text-xs border border-gray-200 rounded px-2 py-1 outline-none focus:border-[#EB4628] resize-none"
               />
-              <span className={`text-[10px] w-7 text-right mt-1.5 ${d.length > DESC_LIMIT ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
-                {d.length}
-              </span>
+              <CharCount length={d.length} limit={DESC_LIMIT} className="w-12 text-right mt-1.5" />
               <button
                 onClick={() => onChange({ ...ad, descriptions: ad.descriptions.filter((_, j) => j !== i) })}
                 className="text-gray-400 hover:text-red-500 mt-1.5"

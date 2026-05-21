@@ -20,12 +20,23 @@ export default function ArchiveView() {
   const supabase = createClient()
 
   useEffect(() => {
+    // Belangrijk: GEEN transcript ophalen in de lijst — die kan megabytes groot
+    // zijn (vooral met WhisperX + speaker labels) en faalt dan met "Load failed".
+    // Transcript wordt apart geladen in NotulenDetailModal.
+    const NOTULEN_LIST_FIELDS = 'id,project_id,title,client_name,datum,aanwezig,samenvatting,agendapunten,besluiten,actiepunten,volgende_vergadering,created_by,created_by_name,created_at'
+
     Promise.all([
-      supabase.from('notulen').select('*').order('created_at', { ascending: false }),
+      supabase.from('notulen').select(NOTULEN_LIST_FIELDS).order('created_at', { ascending: false }),
       supabase.from('projects').select('*').order('name'),
     ]).then(([nRes, pRes]) => {
-      setNotulen((nRes.data ?? []) as Notulen[])
+      if (nRes.error) console.error('Notulen fetch error:', nRes.error)
+      // transcript wordt null gezet voor list view — pas gefetched in detail
+      const list = (nRes.data ?? []).map(n => ({ ...n, transcript: null })) as Notulen[]
+      setNotulen(list)
       setProjects((pRes.data ?? []) as Project[])
+      setLoading(false)
+    }).catch(err => {
+      console.error('Archive load failed:', err)
       setLoading(false)
     })
   }, [])

@@ -6,6 +6,8 @@ import { createClient } from '@ibizz/supabase'
 import type { Brand, SeaBrief } from '@ibizz/supabase'
 import { useAuth } from '@/lib/auth'
 import { checkBriefBudget } from '@/lib/budget-thresholds'
+import { parseLocation, serializeLocation } from '@/lib/location-targeting'
+import LocationPicker from './LocationPicker'
 
 type Props = {
   onClose: () => void
@@ -22,7 +24,7 @@ export default function NewBriefModal({ onClose, onCreated }: Props) {
   const [cpa, setCpa] = useState('')
   const [audience, setAudience] = useState('')
   const [icp, setIcp] = useState('')
-  const [location, setLocation] = useState('Netherlands')
+  const [locationTargeting, setLocationTargeting] = useState(() => parseLocation('Netherlands'))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
@@ -47,7 +49,7 @@ export default function NewBriefModal({ onClose, onCreated }: Props) {
         target_cpa: cpa ? parseInt(cpa, 10) : null,
         target_audience: audience.trim() || null,
         icp: icp.trim() || null,
-        location: location.trim() || 'Netherlands',
+        location: serializeLocation(locationTargeting),
         status: 'draft',
         created_by: user?.id ?? null,
         created_by_name: userName || null,
@@ -149,12 +151,9 @@ export default function NewBriefModal({ onClose, onCreated }: Props) {
           })()}
 
           <Field label="Location">
-            <input
-              value={location}
-              onChange={e => setLocation(e.target.value)}
-              placeholder="Netherlands"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#EB4628]"
-            />
+            <div className="border border-gray-200 rounded-xl p-3">
+              <LocationPicker value={locationTargeting} onChange={setLocationTargeting} />
+            </div>
           </Field>
 
           <Field label="Target audience">

@@ -4,6 +4,9 @@ import { resolve } from 'path'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@ibizz/supabase'
 import { cookies } from 'next/headers'
+import { parseLocation, describeLocation } from '@/lib/location-targeting'
+import { scrape, toLlmContext } from '@/lib/scraper'
+import { getCached, setCached } from '@/lib/scrape-cache'
 
 export const runtime = 'nodejs'
 export const maxDuration = 180
@@ -42,24 +45,17 @@ function extractJson(text: string): string {
 
 async function fetchWebsite(url: string): Promise<{ title?: string; content?: string }> {
   try {
-    const target = url.startsWith('http') ? url : `https://${url}`
-    const res = await fetch(target, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ibizz-SEA-Agent/1.0)' },
-      signal: AbortSignal.timeout(15_000),
-    })
-    if (!res.ok) return {}
-    const html = await res.text()
-    const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)
-    const text = html
-      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 6000)
-    return { title: titleMatch?.[1]?.trim(), content: text }
-  } catch {
+    let page = getCached(url)
+    if (!page) {
+      page = await scrape(url)
+      setCached(url, page)
+    }
+    return {
+      title: page.title ?? undefined,
+      content: toLlmContext(page),
+    }
+  } catch (err) {
+    console.warn('[generate-keywords] scrape failed:', err)
     return {}
   }
 }
@@ -120,7 +116,7 @@ BRIEF:
 - Title: ${brief.title}
 - Goal: ${brief.goal ?? '(not specified)'}
 - Monthly budget: ${brief.monthly_budget ? `€${brief.monthly_budget}` : '(not specified)'}
-- Location: ${brief.location}
+- Location: ${describeLocation(parseLocation(brief.location))}
 - Target audience: ${brief.target_audience ?? '(not specified)'}
 - ICP: ${brief.icp ?? '(not specified)'}
 ${websiteContext}

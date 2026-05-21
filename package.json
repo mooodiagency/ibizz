@@ -11,9 +11,11 @@
     "dev:notulist": "npm run dev -w @ibizz/notulist",
     "dev:brandstudio": "npm run dev -w @ibizz/brandstudio",
     "dev:sea-agent": "npm run dev -w @ibizz/sea-agent",
+    "dev:seo-agent": "npm run dev -w @ibizz/seo-agent",
     "build:friday": "npm run build -w @ibizz/friday",
     "build:notulist": "npm run build -w @ibizz/notulist",
     "build:brandstudio": "npm run build -w @ibizz/brandstudio",
-    "build:sea-agent": "npm run build -w @ibizz/sea-agent"
+    "build:sea-agent": "npm run build -w @ibizz/sea-agent",
+    "build:seo-agent": "npm run build -w @ibizz/seo-agent"
   }
 }

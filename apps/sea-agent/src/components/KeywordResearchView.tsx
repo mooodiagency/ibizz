@@ -8,6 +8,7 @@ import {
 import type { SeaKeywordResearch, SeaCampaign, SeaKeyword, SeaMatchType, SeaIntent } from '@ibizz/supabase'
 import { createClient } from '@ibizz/supabase'
 import Select from './Select'
+import AIChatPanel from './AIChatPanel'
 
 type Props = {
   briefId: string
@@ -193,6 +194,7 @@ export default function KeywordResearchView({ briefId, research, onUpdated }: Pr
   )
 
   return (
+    <div className="space-y-4">
     <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
       {/* Header */}
       <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -493,6 +495,17 @@ export default function KeywordResearchView({ briefId, research, onUpdated }: Pr
         )}
       </div>
     </section>
+
+    <AIChatPanel
+      briefId={briefId}
+      step="keywords"
+      currentOutput={research}
+      onIterated={async () => {
+        const { data } = await supabase.from('sea_keyword_research').select('*').eq('brief_id', briefId).single()
+        if (data) onUpdated(data as SeaKeywordResearch)
+      }}
+    />
+    </div>
   )
 }
 

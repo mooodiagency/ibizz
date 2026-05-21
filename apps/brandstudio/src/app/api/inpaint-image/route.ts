@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
 import { createServerClient } from '@supabase/ssr'
-import { getProvider, nearestGeminiAspectRatio } from '@ibizz/ai-image'
+import { getProvider, nearestGeminiAspectRatio, OpenAIProvider } from '@ibizz/ai-image'
 import type { ModelId } from '@ibizz/ai-image'
 import type { Database } from '@ibizz/supabase'
 import { cookies } from 'next/headers'
@@ -41,10 +41,11 @@ export async function POST(req: NextRequest) {
     const body = await req.json() as {
       generationId: string
       prompt: string
-      maskDataUrl: string  // data:image/png;base64,...
+      maskDataUrl: string       // wit-op-zwart mask (voor Gemini context)
+      openaiMaskDataUrl?: string // alpha-transparant mask (voor OpenAI edits)
       model?: ModelId
     }
-    const { generationId, prompt, maskDataUrl } = body
+    const { generationId, prompt, maskDataUrl, openaiMaskDataUrl } = body
     const model: ModelId = body.model ?? 'gemini'
 
     if (!generationId || !prompt?.trim() || !maskDataUrl) {
@@ -55,6 +56,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'GEMINI_API_KEY ontbreekt' }, { status: 500 })
     }
     if (model === 'gemini') process.env.GEMINI_API_KEY = getEnv('GEMINI_API_KEY')!
+
+    if (model === 'openai' && !getEnv('OPENAI_API_KEY')) {
+      return NextResponse.json({ error: 'OPENAI_API_KEY ontbreekt' }, { status: 500 })
+    }
+    if (model === 'openai') process.env.OPENAI_API_KEY = getEnv('OPENAI_API_KEY')!
 
     const supabase = await getSupabase()
     const { data: { user } } = await supabase.auth.getUser()
@@ -75,30 +81,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Originele generatie niet gevonden' }, { status: 404 })
     }
 
-    // References: origineel + mask
-    const references: { url: string; mimeType: string }[] = [
-      { url: original.result_url, mimeType: original.result_url.endsWith('.png') ? 'image/png' : 'image/jpeg' },
-      { url: maskDataUrl, mimeType: 'image/png' },
-    ]
+    const originalRef = {
+      url: original.result_url,
+      mimeType: original.result_url.endsWith('.png') ? 'image/png' : 'image/jpeg',
+    }
 
-    const enrichedPrompt = [
-      'You are editing an existing image. The first reference is the CURRENT IMAGE.',
-      'The second reference is a black-and-white MASK image:',
-      '  - WHITE pixels = the PRIMARY area the user has selected with a brush. Changes targeted at this region are top priority.',
-      '  - BLACK pixels = the rest of the image.',
-      '',
-      `USER INSTRUCTIONS: ${prompt.trim()}`,
-      '',
-      'How to interpret the instructions:',
-      '1. The brushed (white) area is the user\'s focus — apply any change that fits there with priority.',
-      '2. The instructions may also describe changes for parts of the image OUTSIDE the brushed area (e.g. "and change the background to purple"). Apply those too if clearly mentioned.',
-      '3. For all other unmentioned regions: keep them as identical as possible to the original — same composition, lighting, colors, style and subjects.',
-      '',
-      'Return the edited image, maintaining the original aspect ratio and overall framing.',
-    ].join('\n')
+    let result: { imageBase64: string; mimeType: string }
 
-    const provider = getProvider(model)
-    const result = await provider.generate({ prompt: enrichedPrompt, references, model })
+    if (model === 'openai') {
+      // ✨ Echte pixel-perfecte inpainting via OpenAI images/edits.
+      // Mask formaat: PNG met alpha=0 op het te vervangen gebied.
+      const maskUrl = openaiMaskDataUrl ?? maskDataUrl
+      const provider = getProvider(model) as OpenAIProvider
+      result = await provider.inpaint(prompt.trim(), originalRef, { url: maskUrl, mimeType: 'image/png' })
+    } else {
+      // Gemini: geen native inpaint endpoint — werk via prompt + 2 references.
+      const references = [originalRef, { url: maskDataUrl, mimeType: 'image/png' as const }]
+      const enrichedPrompt = [
+        'You are editing an existing image. The first reference is the CURRENT IMAGE.',
+        'The second reference is a black-and-white MASK image:',
+        '  - WHITE pixels = the PRIMARY area the user has selected with a brush. Changes targeted at this region are top priority.',
+        '  - BLACK pixels = the rest of the image.',
+        '',
+        `USER INSTRUCTIONS: ${prompt.trim()}`,
+        '',
+        'How to interpret the instructions:',
+        '1. The brushed (white) area is the user\'s focus — apply any change that fits there with priority.',
+        '2. The instructions may also describe changes for parts of the image OUTSIDE the brushed area (e.g. "and change the background to purple"). Apply those too if clearly mentioned.',
+        '3. For all other unmentioned regions: keep them as identical as possible to the original — same composition, lighting, colors, style and subjects.',
+        '',
+        'Return the edited image, maintaining the original aspect ratio and overall framing.',
+      ].join('\n')
+      const provider = getProvider(model)
+      result = await provider.generate({ prompt: enrichedPrompt, references, model })
+    }
 
     // Upload
     const buf = Buffer.from(result.imageBase64, 'base64')

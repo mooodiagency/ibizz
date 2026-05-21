@@ -3,17 +3,23 @@ import type { Database } from './types'
 
 type SupaClient = ReturnType<typeof createBrowserClient<Database>>
 
-let _client: SupaClient | null = null
-
 /**
- * Singleton browser client. Voorkomt "Lock was stolen by another request"
- * door slechts één auth-managed client per browser tab te houden.
+ * Singleton via globalThis — overleeft Turbopack/Webpack HMR in dev.
+ *
+ * Module-level state wordt door HMR opnieuw geïnitialiseerd waardoor er
+ * meerdere Supabase clients ontstaan die elkaars auth lock stelen
+ * ("Lock was stolen by another request"). globalThis blijft wel staan.
  */
+declare global {
+  // eslint-disable-next-line no-var
+  var __ibizzSupabaseClient: SupaClient | undefined
+}
+
 export function createClient(): SupaClient {
-  if (_client) return _client
-  _client = createBrowserClient<Database>(
+  if (globalThis.__ibizzSupabaseClient) return globalThis.__ibizzSupabaseClient
+  globalThis.__ibizzSupabaseClient = createBrowserClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
   )
-  return _client
+  return globalThis.__ibizzSupabaseClient
 }

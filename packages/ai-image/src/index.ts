@@ -1,4 +1,5 @@
 export * from './types'
 export * from './formats'
 export { GeminiProvider } from './gemini'
+export { OpenAIProvider } from './openai'
 export { getProvider } from './factory'

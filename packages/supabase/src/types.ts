@@ -160,6 +160,169 @@ export type SeaBrief = {
   updated_at: string
 }
 
+// ─── SEO Agent ────────────────────────────────────────────────────────
+
+export type SeoBriefStatus = 'draft' | 'in_review' | 'approved' | 'archived'
+
+export type SeoBrief = {
+  id: string
+  brand_id: string | null
+  title: string
+  goal: string | null
+  monthly_target: string | null            // bv. "1000 organic visitors/maand"
+  primary_market: string                   // locatie context
+  website_url: string | null               // huidige klant website
+  competitors: string[]                    // concurrent URLs
+  status: SeoBriefStatus
+  created_by: string | null
+  created_by_name: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type SeoPersonaDemographics = {
+  age_range?: string | null
+  occupation?: string | null
+  location?: string | null
+  family?: string | null
+  income?: string | null
+}
+
+export type SeoPersona = {
+  id: string
+  brief_id: string
+  name: string                              // "Tech-savvy Tom"
+  avatar_emoji: string                      // "👤"
+  one_liner: string | null                  // korte typering
+  demographics: SeoPersonaDemographics | null
+  pains: string[]
+  motivations: string[]
+  search_behavior: string[]                 // queries die ze typen
+  channels: string[]                        // LinkedIn / FB / Google
+  sort_order: number
+  created_at: string
+}
+
+export type SeoThemeStatus = 'active' | 'on_hold' | 'archived'
+export type SeoSearchIntent = 'informational' | 'commercial' | 'transactional' | 'navigational'
+
+export type SeoTheme = {
+  id: string
+  brief_id: string
+  name: string                              // "Belasting & ZZP"
+  description: string | null
+  search_intent: SeoSearchIntent | null
+  status: SeoThemeStatus
+  sort_order: number
+  created_at: string
+}
+
+/** Koppelingstabel persona × theme */
+export type SeoPersonaTheme = {
+  persona_id: string
+  theme_id: string
+  created_at: string
+}
+
+export type SeoMessage = {
+  id: string
+  brief_id: string
+  message: string
+  notes: string | null
+  created_at: string
+}
+
+export type SeoMessagePersona = {
+  message_id: string
+  persona_id: string
+}
+
+export type SeoPageStatus = 'idea' | 'planned' | 'in_progress' | 'review' | 'published'
+
+export type SeoPage = {
+  id: string
+  brief_id: string
+  persona_id: string | null
+  theme_id: string | null
+  topic: string                             // "Hoe doe ik btw-aangifte als ZZP'er?"
+  target_keyword: string | null
+  secondary_keywords: string[]
+  search_intent: SeoSearchIntent | null
+  estimated_volume: number | null
+  status: SeoPageStatus
+  notes: string | null
+  /** Lessons learned referentie — wat is gebleken bij eerdere content voor deze persona */
+  lessons_applied: string[]
+  created_at: string
+  updated_at: string
+}
+
+export type SeoWriterBriefStatus = 'draft' | 'sent' | 'completed'
+
+export type SeoWriterBrief = {
+  id: string
+  page_id: string
+  /** Volledige brief content — JSON met alle velden voor de schrijver */
+  content: {
+    persona_name: string
+    pain_addressed: string
+    theme: string
+    message: string
+    target_keyword: string
+    secondary_keywords: string[]
+    search_intent: string
+    tone_of_voice: string
+    word_count_target: number
+    headings_structure: string[]
+    must_include: string[]
+    must_avoid: string[]
+    lessons_learned: string[]
+    internal_links: string[]
+    examples_good?: string
+    examples_bad?: string
+  }
+  pdf_url: string | null
+  sent_to: string | null                    // "Caven"
+  sent_at: string | null
+  status: SeoWriterBriefStatus
+  created_at: string
+}
+
+export type SeoArticleStatus = 'draft' | 'review' | 'approved' | 'published'
+
+export type SeoArticle = {
+  id: string
+  page_id: string
+  writer_brief_id: string | null
+  title: string
+  meta_title: string | null
+  meta_description: string | null
+  content_markdown: string
+  model: string
+  word_count: number
+  status: SeoArticleStatus
+  is_active: boolean
+  notes: string | null
+  created_at: string
+  updated_at: string
+  created_by: string | null
+  created_by_name: string | null
+}
+
+export type SeoLessonType = 'success' | 'failure' | 'observation'
+
+export type SeoLesson = {
+  id: string
+  brief_id: string
+  persona_id: string | null
+  theme_id: string | null
+  type: SeoLessonType
+  description: string                       // wat werkte / werkte niet
+  context: string | null                    // bij welke content / page
+  created_at: string
+  created_by: string | null
+}
+
 export type GenerationStatus = 'draft' | 'approved' | 'rejected'
 
 export type Generation = {
@@ -523,6 +686,159 @@ export type Database = {
           updated_at?: string
         }
         Update: Partial<Omit<SeaBrief, 'id' | 'created_at'>>
+        Relationships: []
+      }
+      seo_briefs: {
+        Row: SeoBrief
+        Insert: {
+          id?: string
+          brand_id?: string | null
+          title: string
+          goal?: string | null
+          monthly_target?: string | null
+          primary_market?: string
+          website_url?: string | null
+          competitors?: string[]
+          status?: SeoBriefStatus
+          created_by?: string | null
+          created_by_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Omit<SeoBrief, 'id' | 'created_at'>>
+        Relationships: []
+      }
+      seo_personas: {
+        Row: SeoPersona
+        Insert: {
+          id?: string
+          brief_id: string
+          name: string
+          avatar_emoji?: string
+          one_liner?: string | null
+          demographics?: SeoPersonaDemographics | null
+          pains?: string[]
+          motivations?: string[]
+          search_behavior?: string[]
+          channels?: string[]
+          sort_order?: number
+          created_at?: string
+        }
+        Update: Partial<Omit<SeoPersona, 'id' | 'brief_id' | 'created_at'>>
+        Relationships: []
+      }
+      seo_themes: {
+        Row: SeoTheme
+        Insert: {
+          id?: string
+          brief_id: string
+          name: string
+          description?: string | null
+          search_intent?: SeoSearchIntent | null
+          status?: SeoThemeStatus
+          sort_order?: number
+          created_at?: string
+        }
+        Update: Partial<Omit<SeoTheme, 'id' | 'brief_id' | 'created_at'>>
+        Relationships: []
+      }
+      seo_persona_themes: {
+        Row: SeoPersonaTheme
+        Insert: { persona_id: string; theme_id: string; created_at?: string }
+        Update: never
+        Relationships: []
+      }
+      seo_messages: {
+        Row: SeoMessage
+        Insert: {
+          id?: string
+          brief_id: string
+          message: string
+          notes?: string | null
+          created_at?: string
+        }
+        Update: Partial<Pick<SeoMessage, 'message' | 'notes'>>
+        Relationships: []
+      }
+      seo_message_personas: {
+        Row: SeoMessagePersona
+        Insert: { message_id: string; persona_id: string }
+        Update: never
+        Relationships: []
+      }
+      seo_pages: {
+        Row: SeoPage
+        Insert: {
+          id?: string
+          brief_id: string
+          persona_id?: string | null
+          theme_id?: string | null
+          topic: string
+          target_keyword?: string | null
+          secondary_keywords?: string[]
+          search_intent?: SeoSearchIntent | null
+          estimated_volume?: number | null
+          status?: SeoPageStatus
+          notes?: string | null
+          lessons_applied?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Omit<SeoPage, 'id' | 'brief_id' | 'created_at'>>
+        Relationships: []
+      }
+      seo_writer_briefs: {
+        Row: SeoWriterBrief
+        Insert: {
+          id?: string
+          page_id: string
+          content: SeoWriterBrief['content']
+          pdf_url?: string | null
+          sent_to?: string | null
+          sent_at?: string | null
+          status?: SeoWriterBriefStatus
+          created_at?: string
+        }
+        Update: Partial<Pick<SeoWriterBrief, 'content' | 'pdf_url' | 'sent_to' | 'sent_at' | 'status'>>
+        Relationships: []
+      }
+      seo_articles: {
+        Row: SeoArticle
+        Insert: {
+          id?: string
+          page_id: string
+          writer_brief_id?: string | null
+          title: string
+          meta_title?: string | null
+          meta_description?: string | null
+          content_markdown: string
+          model: string
+          word_count?: number
+          status?: SeoArticleStatus
+          is_active?: boolean
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+        }
+        Update: Partial<Omit<SeoArticle, 'id' | 'page_id' | 'created_at'>>
+        Relationships: []
+      }
+      seo_lessons: {
+        Row: SeoLesson
+        Insert: {
+          id?: string
+          brief_id: string
+          persona_id?: string | null
+          theme_id?: string | null
+          type: SeoLessonType
+          description: string
+          context?: string | null
+          created_at?: string
+          created_by?: string | null
+        }
+        Update: Partial<Pick<SeoLesson, 'type' | 'description' | 'context'>>
         Relationships: []
       }
       generations: {

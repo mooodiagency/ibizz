@@ -56,6 +56,11 @@ export async function POST(req: NextRequest) {
     }
     if (model === 'gemini') process.env.GEMINI_API_KEY = getEnv('GEMINI_API_KEY')
 
+    if (model === 'openai' && !getEnv('OPENAI_API_KEY')) {
+      return NextResponse.json({ error: 'OPENAI_API_KEY ontbreekt — voeg toe aan .env.local' }, { status: 500 })
+    }
+    if (model === 'openai') process.env.OPENAI_API_KEY = getEnv('OPENAI_API_KEY')
+
     const supabase = await getSupabase()
 
     // User

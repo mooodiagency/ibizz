@@ -4,6 +4,7 @@ import { resolve } from 'path'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@ibizz/supabase'
 import { cookies } from 'next/headers'
+import { parseLocation, describeLocation } from '@/lib/location-targeting'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -84,7 +85,7 @@ BRIEF:
 - Goal: ${brief.goal ?? '(not specified)'}
 - Monthly budget: ${brief.monthly_budget ? `€${brief.monthly_budget}` : '(not specified)'}
 - Target CPA: ${brief.target_cpa ? `€${brief.target_cpa}` : '(not specified, derive from goal)'}
-- Location: ${brief.location}
+- Location: ${describeLocation(parseLocation(brief.location))}
 - Target audience: ${brief.target_audience ?? '(not specified)'}
 - ICP: ${brief.icp ?? '(not specified)'}
 

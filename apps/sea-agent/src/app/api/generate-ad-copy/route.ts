@@ -4,6 +4,7 @@ import { resolve } from 'path'
 import { createServerClient } from '@supabase/ssr'
 import type { Database, SeaCampaign, SeaAdCopy } from '@ibizz/supabase'
 import { cookies } from 'next/headers'
+import { parseLocation, describeLocation } from '@/lib/location-targeting'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -70,7 +71,7 @@ BRIEF:
 - Goal: ${brief.goal ?? '(not specified)'}
 - Audience: ${brief.target_audience ?? '(not specified)'}
 - ICP: ${brief.icp ?? '(not specified)'}
-- Location: ${brief.location}
+- Location: ${describeLocation(parseLocation(brief.location))}
 
 CAMPAIGN: ${campaign.name} (${campaign.segment})
 AD GROUP: ${group.name}

@@ -5,6 +5,7 @@ import { resolve } from 'path'
 import { createServerClient } from '@supabase/ssr'
 import type { Database } from '@ibizz/supabase'
 import { cookies } from 'next/headers'
+import { parseLocation, type LocationItem } from '@/lib/location-targeting'
 
 export const runtime = 'nodejs'
 
@@ -39,6 +40,7 @@ const CAMPAIGN_TYPE_LABEL: Record<string, string> = {
 const HEADERS = [
   'Campaign', 'Campaign type', 'Campaign status', 'Campaign daily budget', 'Bid strategy type', 'Target CPA',
   'Networks', 'Location targeting type',
+  'Location', 'Radius', 'Radius units',
   'Ad group', 'Ad group status',
   'Keyword', 'Match type', 'Status',
   'Negative keyword', 'Negative keyword Match type',
@@ -50,6 +52,30 @@ const HEADERS = [
   'Description 1', 'Description 2', 'Description 3', 'Description 4',
   'Final URL', 'Path 1', 'Path 2',
 ]
+
+function locationRow(campaign: string, item: LocationItem): Row {
+  switch (item.kind) {
+    case 'country':
+    case 'city':
+      return { 'Campaign': campaign, 'Location': item.value }
+    case 'postcode':
+      return { 'Campaign': campaign, 'Location': item.country ? `${item.value}, ${item.country}` : item.value }
+    case 'radius':
+      return {
+        'Campaign': campaign,
+        'Location': item.country ? `${item.centerCity}, ${item.country}` : item.centerCity,
+        'Radius': item.radiusKm,
+        'Radius units': 'km',
+      }
+    case 'coordinates':
+      return {
+        'Campaign': campaign,
+        'Location': `${item.lat.toFixed(6)},${item.lng.toFixed(6)}`,
+        'Radius': item.radiusKm,
+        'Radius units': 'km',
+      }
+  }
+}
 
 type Row = Partial<Record<typeof HEADERS[number], string | number>>
 
@@ -108,6 +134,12 @@ export async function POST(req: NextRequest) {
       // PMax = all by default, but Apps are excluded later via device row.
       const networks = campaign.type === 'Search' ? 'Google search' : 'All'
 
+      // Locatie targeting parsen uit het brief
+      const locationTargeting = parseLocation(brief.location)
+      const targetingTypeLabel = locationTargeting.targetingType === 'presence'
+        ? 'Presence'
+        : 'Presence or interest'
+
       // ── Campaign row ──────────────────────────────────────────────
       rows.push({
         'Campaign': campaign.name,
@@ -117,9 +149,13 @@ export async function POST(req: NextRequest) {
         'Bid strategy type': bidStrategy,
         'Target CPA': targetCpa,
         'Networks': networks,
-        // ibizz standaard: targeting op fysieke aanwezigheid, niet op interesse
-        'Location targeting type': 'Presence',
+        'Location targeting type': targetingTypeLabel,
       })
+
+      // ── Location rows (één per locatie target) ──────────────────
+      for (const loc of locationTargeting.items) {
+        rows.push(locationRow(campaign.name, loc))
+      }
 
       // ── Device exclusions (ibizz standaard) ──────────────────────
       // Tablets standaard uit — leveren zelden conversies
@@ -202,6 +238,7 @@ export async function POST(req: NextRequest) {
     ws['!cols'] = [
       { wch: 32 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 22 }, { wch: 12 },
       { wch: 14 }, { wch: 22 },
+      { wch: 28 }, { wch: 10 }, { wch: 12 },
       { wch: 28 }, { wch: 14 },
       { wch: 35 }, { wch: 10 }, { wch: 10 },
       { wch: 35 }, { wch: 26 },

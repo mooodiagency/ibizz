@@ -12,6 +12,7 @@ import NegativesView from './NegativesView'
 import { strategyStatus, keywordsStatus, adCopyStatus, negativesStatus, STATUS_DOT_COLOR, STATUS_LABEL } from '@/lib/step-status'
 import type { StepStatus } from '@/lib/step-status'
 import { checkBriefBudget } from '@/lib/budget-thresholds'
+import { parseLocation, describeLocation } from '@/lib/location-targeting'
 
 type Step = 'overview' | 'strategy' | 'keywords' | 'adcopy' | 'negatives' | 'export'
 
@@ -166,7 +167,7 @@ export default function BriefDetail({ brief, brand, onBack, onDeleted }: Props) 
           )}
 
           {activeStep === 'adcopy' && (
-            <AdCopyView research={research} onUpdated={setResearch} />
+            <AdCopyView briefId={brief.id} research={research} onUpdated={setResearch} />
           )}
 
           {activeStep === 'negatives' && (
@@ -251,7 +252,7 @@ function OverviewSection({ brief, brand }: { brief: SeaBrief; brand?: Brand }) {
         <Field label="Status" value={brief.status} />
         <Field label="Monthly budget" value={brief.monthly_budget ? `€${brief.monthly_budget}` : '—'} />
         <Field label="Target CPA" value={brief.target_cpa ? `€${brief.target_cpa}` : '—'} />
-        <Field label="Location" value={brief.location} />
+        <Field label="Location" value={describeLocation(parseLocation(brief.location))} />
         <Field label="Created" value={format(new Date(brief.created_at), 'd MMM yyyy')} />
       </div>
 

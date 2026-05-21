@@ -24,16 +24,25 @@ export default function NotulenPanel({ onClose, projectId, projectName }: Props)
   const supabase = createClient()
 
   useEffect(() => {
+    // Skip transcript veld — kan megabytes groot zijn met WhisperX en faalt
+    // dan met "Load failed". Transcript wordt apart geladen in editor.
+    const LIST_FIELDS = 'id,project_id,title,client_name,datum,aanwezig,samenvatting,agendapunten,besluiten,actiepunten,volgende_vergadering,created_by,created_by_name,created_at'
+
     const notulenQuery = projectId
-      ? supabase.from('notulen').select('*').eq('project_id', projectId).order('created_at', { ascending: false })
-      : supabase.from('notulen').select('*').order('created_at', { ascending: false })
+      ? supabase.from('notulen').select(LIST_FIELDS).eq('project_id', projectId).order('created_at', { ascending: false })
+      : supabase.from('notulen').select(LIST_FIELDS).order('created_at', { ascending: false })
 
     Promise.all([
       notulenQuery,
       supabase.from('projects').select('*').order('created_at'),
     ]).then(([notRes, projRes]) => {
-      setNotulen((notRes.data ?? []) as Notulen[])
+      if (notRes.error) console.error('Notulen fetch error:', notRes.error)
+      const list = (notRes.data ?? []).map(n => ({ ...n, transcript: null })) as Notulen[]
+      setNotulen(list)
       setProjects((projRes.data ?? []) as Project[])
+      setLoading(false)
+    }).catch(err => {
+      console.error('NotulenPanel load failed:', err)
       setLoading(false)
     })
   }, [projectId])

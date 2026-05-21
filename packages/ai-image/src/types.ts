@@ -19,9 +19,9 @@ export const MODELS: ModelInfo[] = [
   {
     id: 'openai',
     name: 'OpenAI gpt-image-1',
-    description: 'Hoge kwaliteit, langzamer',
+    description: 'Hoge kwaliteit · echte inpainting · betaald (~$0.04/img)',
     supportsReferences: true,
-    available: false,
+    available: true,
   },
   {
     id: 'flux',
