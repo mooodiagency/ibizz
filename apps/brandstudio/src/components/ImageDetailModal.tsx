@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { X, Trash2, Loader2, Sparkles, Calendar, Layers } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
+import { Select } from '@ibizz/ui'
 import type { BrandImage, BrandCategory } from '@ibizz/supabase'
 import { format } from 'date-fns'
 import { nl } from 'date-fns/locale'
@@ -124,16 +125,16 @@ export default function ImageDetailModal({ image, categories, onClose, onUpdated
                   AI
                 </button>
               </div>
-              <select
+              <Select
                 value={categoryId ?? ''}
-                onChange={e => setCategoryId(e.target.value || null)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#EB4628] bg-white"
-              >
-                <option value="">— Geen categorie —</option>
-                {categories.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+                onChange={v => setCategoryId(v || null)}
+                placeholder="— Geen categorie —"
+                options={[
+                  { value: '', label: '— Geen categorie —' },
+                  ...categories.map(c => ({ value: c.id, label: c.name })),
+                ]}
+                className="w-full"
+              />
             </div>
 
             {/* Status */}

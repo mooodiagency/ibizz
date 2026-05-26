@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Lightbulb, Plus, Trash2, Loader2, ThumbsUp, ThumbsDown, Eye, X, Save, Filter } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
+import { Select } from '@ibizz/ui'
 import type { SeoLesson, SeoLessonType, SeoBrief, SeoPersona, SeoTheme, Brand } from '@ibizz/supabase'
 import { format } from 'date-fns'
 import { nl } from 'date-fns/locale'
@@ -167,30 +168,23 @@ export default function LessonsPage() {
         <div className="px-8 py-4 border-b border-gray-100 bg-orange-50/40">
           <div className="max-w-3xl space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <select
+              <Select
                 value={newBriefId}
-                onChange={e => { setNewBriefId(e.target.value); setNewPersonaId(''); setNewThemeId('') }}
-                className="text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#EB4628] bg-white"
-              >
-                <option value="">— Selecteer brief —</option>
-                {briefs.map(b => {
-                  const brand = brands.find(br => br.id === b.brand_id)
-                  return (
-                    <option key={b.id} value={b.id}>
-                      {brand?.name ? `${brand.name} · ` : ''}{b.title}
-                    </option>
-                  )
-                })}
-              </select>
-              <select
+                onChange={v => { setNewBriefId(v); setNewPersonaId(''); setNewThemeId('') }}
+                placeholder="— Selecteer brief —"
+                options={[
+                  { value: '', label: '— Selecteer brief —' },
+                  ...briefs.map(b => {
+                    const brand = brands.find(br => br.id === b.brand_id)
+                    return { value: b.id, label: `${brand?.name ? `${brand.name} · ` : ''}${b.title}` }
+                  }),
+                ]}
+              />
+              <Select
                 value={newType}
-                onChange={e => setNewType(e.target.value as SeoLessonType)}
-                className="text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#EB4628] bg-white"
-              >
-                {(Object.keys(TYPE_LABEL) as SeoLessonType[]).map(t => (
-                  <option key={t} value={t}>{TYPE_LABEL[t]}</option>
-                ))}
-              </select>
+                onChange={v => setNewType(v as SeoLessonType)}
+                options={(Object.keys(TYPE_LABEL) as SeoLessonType[]).map(t => ({ value: t, label: TYPE_LABEL[t] }))}
+              />
             </div>
             <textarea
               value={newDescription}
@@ -208,26 +202,18 @@ export default function LessonsPage() {
             />
             {newBriefId && (briefPersonas.length > 0 || briefThemes.length > 0) && (
               <div className="grid grid-cols-2 gap-3">
-                <select
+                <Select
                   value={newPersonaId}
-                  onChange={e => setNewPersonaId(e.target.value)}
-                  className="text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#EB4628] bg-white"
-                >
-                  <option value="">— Geldt voor alle personas —</option>
-                  {briefPersonas.map(p => (
-                    <option key={p.id} value={p.id}>{p.avatar_emoji} {p.name}</option>
-                  ))}
-                </select>
-                <select
+                  onChange={setNewPersonaId}
+                  placeholder="— Alle personas —"
+                  options={[{ value: '', label: '— Geldt voor alle personas —' }, ...briefPersonas.map(p => ({ value: p.id, label: `${p.avatar_emoji} ${p.name}` }))]}
+                />
+                <Select
                   value={newThemeId}
-                  onChange={e => setNewThemeId(e.target.value)}
-                  className="text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#EB4628] bg-white"
-                >
-                  <option value="">— Geldt voor alle themes —</option>
-                  {briefThemes.map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
+                  onChange={setNewThemeId}
+                  placeholder="— Alle themes —"
+                  options={[{ value: '', label: '— Geldt voor alle themes —' }, ...briefThemes.map(t => ({ value: t.id, label: t.name }))]}
+                />
               </div>
             )}
             <p className="text-[11px] text-gray-500 italic leading-relaxed">
@@ -254,31 +240,26 @@ export default function LessonsPage() {
       {/* Filters */}
       <div className="px-8 py-3 border-b border-gray-100 flex items-center gap-2 flex-wrap">
         <Filter size={12} className="text-gray-400" />
-        <select
+        <Select
           value={filterBriefId}
-          onChange={e => setFilterBriefId(e.target.value)}
-          className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none bg-white focus:border-[#EB4628]"
-        >
-          <option value="all">Alle briefs</option>
-          {briefs.map(b => {
-            const brand = brands.find(br => br.id === b.brand_id)
-            return (
-              <option key={b.id} value={b.id}>
-                {brand?.name ? `${brand.name} · ` : ''}{b.title}
-              </option>
-            )
-          })}
-        </select>
-        <select
+          onChange={setFilterBriefId}
+          options={[
+            { value: 'all', label: 'Alle briefs' },
+            ...briefs.map(b => {
+              const brand = brands.find(br => br.id === b.brand_id)
+              return { value: b.id, label: `${brand?.name ? `${brand.name} · ` : ''}${b.title}` }
+            }),
+          ]}
+          className="w-52"
+          compact
+        />
+        <Select
           value={filterType}
-          onChange={e => setFilterType(e.target.value)}
-          className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none bg-white focus:border-[#EB4628]"
-        >
-          <option value="all">Alle types</option>
-          {(Object.keys(TYPE_LABEL) as SeoLessonType[]).map(t => (
-            <option key={t} value={t}>{TYPE_LABEL[t]}</option>
-          ))}
-        </select>
+          onChange={setFilterType}
+          options={[{ value: 'all', label: 'Alle types' }, ...(Object.keys(TYPE_LABEL) as SeoLessonType[]).map(t => ({ value: t, label: TYPE_LABEL[t] }))]}
+          className="w-40"
+          compact
+        />
         <span className="text-xs text-gray-400 ml-auto">
           {filtered.length}/{lessons.length} lessons getoond
         </span>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Newspaper, Loader2, Sparkles, AlertCircle, Eye, Hash, RotateCcw } from 'lucide-react'
+import { IbizzMark } from '@ibizz/ui'
 import { createClient } from '@ibizz/supabase'
 import type { SeoArticle, SeoBrief, SeoPage, SeoPersona, SeoTheme, SeoWriterBrief, SeoArticleStatus } from '@ibizz/supabase'
 import { format } from 'date-fns'
@@ -219,7 +220,7 @@ export default function ArticlesView({ briefId, onCountChanged }: Props) {
                             className="p-1.5 rounded-lg text-gray-400 hover:text-[#EB4628] hover:bg-gray-100 disabled:opacity-50"
                             title="Opnieuw genereren (vervangt deze versie)"
                           >
-                            {generating ? <Loader2 size={11} className="animate-spin" /> : <RotateCcw size={11} />}
+                            {generating ? <IbizzMark size={11} animate /> : <RotateCcw size={11} />}
                           </button>
                         </>
                       ) : (
@@ -229,7 +230,7 @@ export default function ArticlesView({ briefId, onCountChanged }: Props) {
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-50"
                           style={{ backgroundColor: '#EB4628' }}
                         >
-                          {generating ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+                          {generating ? <IbizzMark size={11} animate /> : <Sparkles size={11} />}
                           {generating ? 'Schrijven…' : 'Genereer artikel'}
                         </button>
                       )}

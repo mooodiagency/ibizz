@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { X, Plus, Trash2, Download, Save, Loader2, FileText, Pencil, History, ChevronDown, ChevronRight, ListPlus, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
+import { Select, IbizzMark } from '@ibizz/ui'
 import { useAuth } from '@/lib/auth/AuthContext'
 import type { Notulen, Project, NotulenEdit, ProjectSection } from '@ibizz/supabase'
 import { format } from 'date-fns'
@@ -632,7 +633,7 @@ function EditMode({ n, update, projects, fixingName, onFixClient }: EditModeProp
             Klant
             {fixingName && (
               <span className="flex items-center gap-1 text-[10px] normal-case text-gray-400 font-normal">
-                <Loader2 size={10} className="animate-spin" />
+                <IbizzMark size={11} animate className="text-[#EB4628]" />
                 naam corrigeren…
               </span>
             )}
@@ -649,14 +650,16 @@ function EditMode({ n, update, projects, fixingName, onFixClient }: EditModeProp
           <input value={n.datum ?? ''} onChange={e => update('datum', e.target.value || null)} className="input" />
         </Field>
         <Field label="Project">
-          <select
+          <Select
             value={n.project_id ?? ''}
-            onChange={e => update('project_id', e.target.value || null)}
-            className="input bg-white"
-          >
-            <option value="">Geen project</option>
-            {projects.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}
-          </select>
+            onChange={v => update('project_id', v || null)}
+            placeholder="Geen project"
+            options={[
+              { value: '', label: 'Geen project' },
+              ...projects.map(p => ({ value: p.id, label: p.name })),
+            ]}
+            className="w-full"
+          />
         </Field>
       </div>
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { X, Loader2, AlertCircle } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
+import { Select } from '@ibizz/ui'
 import type { Brand, SeaBrief } from '@ibizz/supabase'
 import { useAuth } from '@/lib/auth'
 import { checkBriefBudget } from '@/lib/budget-thresholds'
@@ -86,16 +87,13 @@ export default function NewBriefModal({ onClose, onCreated }: Props) {
           </Field>
 
           <Field label="Brand">
-            <select
+            <Select
               value={brandId}
-              onChange={e => setBrandId(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#EB4628] bg-white"
-            >
-              <option value="">— No brand —</option>
-              {brands.map(b => (
-                <option key={b.id} value={b.id}>{b.name}</option>
-              ))}
-            </select>
+              onChange={setBrandId}
+              placeholder="— No brand —"
+              options={[{ value: '', label: '— No brand —' }, ...brands.map(b => ({ value: b.id, label: b.name }))]}
+              className="w-full"
+            />
             {brands.length === 0 && (
               <p className="text-[11px] text-gray-400 mt-1">No brands yet — create one in Brand Studio first.</p>
             )}

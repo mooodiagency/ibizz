@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Tags, Plus, Trash2, Edit2, Save, X, Loader2, Eye, EyeOff, Archive, Sparkles } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
+import { Select } from '@ibizz/ui'
 import type { SeoTheme, SeoSearchIntent, SeoThemeStatus } from '@ibizz/supabase'
 import AISuggestionsModal from './AISuggestionsModal'
 
@@ -189,25 +190,17 @@ export default function ThemesView({ briefId, onCountChanged }: Props) {
             className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#EB4628] resize-none"
           />
           <div className="grid grid-cols-2 gap-2">
-            <select
+            <Select
               value={draft.search_intent}
-              onChange={e => setDraft({ ...draft, search_intent: e.target.value as SeoSearchIntent })}
-              className="text-sm border border-gray-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-[#EB4628] bg-white"
-            >
-              <option value="">— Search intent —</option>
-              {(Object.keys(INTENT_LABEL) as SeoSearchIntent[]).map(i => (
-                <option key={i} value={i}>{INTENT_LABEL[i]}</option>
-              ))}
-            </select>
-            <select
+              onChange={v => setDraft({ ...draft, search_intent: v as SeoSearchIntent })}
+              placeholder="— Search intent —"
+              options={[{ value: '', label: '— Search intent —' }, ...(Object.keys(INTENT_LABEL) as SeoSearchIntent[]).map(i => ({ value: i, label: INTENT_LABEL[i] }))]}
+            />
+            <Select
               value={draft.status}
-              onChange={e => setDraft({ ...draft, status: e.target.value as SeoThemeStatus })}
-              className="text-sm border border-gray-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-[#EB4628] bg-white"
-            >
-              {(Object.keys(STATUS_LABEL) as SeoThemeStatus[]).map(s => (
-                <option key={s} value={s}>{STATUS_LABEL[s]}</option>
-              ))}
-            </select>
+              onChange={v => setDraft({ ...draft, status: v as SeoThemeStatus })}
+              options={(Object.keys(STATUS_LABEL) as SeoThemeStatus[]).map(s => ({ value: s, label: STATUS_LABEL[s] }))}
+            />
           </div>
           <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
             <button onClick={() => { setEditingId(null); setDraft(null) }} className="flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200">

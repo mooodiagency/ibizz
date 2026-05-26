@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { createClient } from '@ibizz/supabase'
+import { Select, IbizzMark } from '@ibizz/ui'
 import type { SeoArticle, SeoArticleStatus, SeoWriterBrief } from '@ibizz/supabase'
 import SeoScorePanel from './SeoScorePanel'
 import type { AnalysisInput } from '@/lib/seo-score'
@@ -202,7 +203,6 @@ export default function ArticleEditor({ article, pageTopic, websiteUrl, onClose,
     URL.revokeObjectURL(url)
   }
 
-  const statusOption = STATUS_OPTIONS.find(s => s.value === current.status)
   const wordCount = contentDraft.trim().split(/\s+/).filter(Boolean).length
 
   return (
@@ -221,15 +221,13 @@ export default function ArticleEditor({ article, pageTopic, websiteUrl, onClose,
               <Hash size={11} />
               {wordCount} woorden
             </span>
-            <select
+            <Select
               value={current.status}
-              onChange={e => setStatus(e.target.value as SeoArticleStatus)}
-              className={`text-xs font-semibold uppercase tracking-wide rounded-lg px-2 py-1 outline-none border-0 cursor-pointer ${statusOption?.color}`}
-            >
-              {STATUS_OPTIONS.map(s => (
-                <option key={s.value} value={s.value}>{s.label}</option>
-              ))}
-            </select>
+              onChange={v => setStatus(v as SeoArticleStatus)}
+              options={STATUS_OPTIONS.map(s => ({ value: s.value, label: s.label }))}
+              compact
+              className="w-32"
+            />
 
             {/* View mode toggle */}
             <div className="flex bg-gray-100 rounded-lg p-0.5">
@@ -601,7 +599,7 @@ export default function ArticleEditor({ article, pageTopic, websiteUrl, onClose,
                   {chatLoading && (
                     <div className="flex justify-start">
                       <div className="bg-white border border-gray-200 rounded-2xl px-3 py-2 flex items-center gap-2 text-xs text-gray-500">
-                        <Loader2 size={11} className="animate-spin" />
+                        <IbizzMark size={13} animate className="text-[#EB4628]" />
                         AI past artikel aan…
                       </div>
                     </div>

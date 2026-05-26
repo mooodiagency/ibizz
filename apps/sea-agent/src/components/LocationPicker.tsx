@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Globe, MapPin, Mail, Compass, Plus, X, Building } from 'lucide-react'
-import Select from './Select'
+import { Select } from '@ibizz/ui'
 import type { LocationTargeting, LocationItem } from '@/lib/location-targeting'
 
 type ItemKind = LocationItem['kind']

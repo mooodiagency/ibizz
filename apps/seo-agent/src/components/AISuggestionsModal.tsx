@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Sparkles, X, Loader2, Check, AlertCircle, Users, Tags, Save } from 'lucide-react'
+import { IbizzMark } from '@ibizz/ui'
 import { createClient } from '@ibizz/supabase'
 import type { SeoSearchIntent } from '@ibizz/supabase'
 
@@ -155,7 +156,7 @@ export default function AISuggestionsModal({ briefId, onClose, onSaved }: Props)
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {phase === 'loading' && (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <Loader2 size={28} className="animate-spin" style={{ color: '#EB4628' }} />
+              <IbizzMark size={32} animate className="text-[#EB4628]" />
               <p className="text-sm font-semibold text-gray-700">AI analyseert je klant website…</p>
               <p className="text-xs text-gray-400">Dit duurt 20-40 seconden</p>
             </div>

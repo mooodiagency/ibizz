@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { X, Download, Edit2, Save, Loader2, Target, User, Tag, Hash, Volume2, BookOpen, ListChecks, AlertTriangle, Lightbulb, Link as LinkIcon, ThumbsUp, ThumbsDown, Plus, Trash2 } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
+import { Select } from '@ibizz/ui'
 import type { SeoWriterBrief, SeoBrief } from '@ibizz/supabase'
 import { generateWriterBriefPDF } from '@/lib/writer-brief-pdf'
 
@@ -227,17 +228,18 @@ export default function WriterBriefDetailModal({ writerBrief, pageTopic, brief, 
               </KV>
               <KV label="Search intent">
                 {editing ? (
-                  <select
+                  <Select
                     value={c.search_intent}
-                    onChange={e => updateContent('search_intent', e.target.value)}
-                    className="text-sm border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-[#EB4628] bg-white"
-                  >
-                    <option value="">—</option>
-                    <option value="informational">Informational</option>
-                    <option value="commercial">Commercial</option>
-                    <option value="transactional">Transactional</option>
-                    <option value="navigational">Navigational</option>
-                  </select>
+                    onChange={v => updateContent('search_intent', v)}
+                    options={[
+                      { value: '', label: '—' },
+                      { value: 'informational', label: 'Informational' },
+                      { value: 'commercial', label: 'Commercial' },
+                      { value: 'transactional', label: 'Transactional' },
+                      { value: 'navigational', label: 'Navigational' },
+                    ]}
+                    className="w-44"
+                  />
                 ) : (
                   <span className="text-sm font-semibold uppercase tracking-wide text-gray-600">{c.search_intent || '—'}</span>
                 )}

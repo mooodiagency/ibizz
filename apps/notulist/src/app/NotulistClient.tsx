@@ -5,7 +5,7 @@ import { Mic, MicOff, FileText, Download, RotateCcw, Loader2, Clock, CheckCircle
 import type { NotulenData } from '@ibizz/pdf'
 import { createClient } from '@ibizz/supabase'
 import type { Project } from '@ibizz/supabase'
-import { TopBar } from '@ibizz/ui'
+import { TopBar, Select, IbizzMark } from '@ibizz/ui'
 import type { AppId } from '@ibizz/ui'
 import { useAuth } from '@/lib/auth'
 import Sidebar, { type NotulistView } from '@/components/Sidebar'
@@ -381,7 +381,7 @@ export default function NotulistClient() {
         {phase === 'transcribing' && (
           <div className="w-full max-w-md flex flex-col items-center gap-5">
             <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ backgroundColor: '#EB462812' }}>
-              <Loader2 size={36} className="animate-spin" style={{ color: '#EB4628' }} />
+              <IbizzMark size={36} animate className="text-[#EB4628]" />
             </div>
             <div className="text-center">
               <p className="text-base font-semibold text-gray-800 mb-1">
@@ -470,7 +470,7 @@ export default function NotulistClient() {
         {phase === 'generating' && (
           <div className="flex flex-col items-center gap-5 text-center max-w-sm">
             <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ backgroundColor: '#EB462812' }}>
-              <Loader2 size={36} className="animate-spin" style={{ color: '#EB4628' }} />
+              <IbizzMark size={36} animate className="text-[#EB4628]" />
             </div>
             <div>
               <p className="text-base font-semibold text-gray-800 mb-1">Notulen worden opgesteld…</p>
@@ -526,7 +526,7 @@ export default function NotulistClient() {
                       Klant
                       {fixingName && (
                         <span className="flex items-center gap-1 text-[10px] normal-case text-gray-400">
-                          <Loader2 size={10} className="animate-spin" />
+                          <IbizzMark size={11} animate className="text-[#EB4628]" />
                           naam corrigeren in notulen…
                         </span>
                       )}
@@ -541,16 +541,13 @@ export default function NotulistClient() {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Project</label>
-                    <select
+                    <Select
                       value={saveProjectId}
-                      onChange={e => setSaveProjectId(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-[#EB4628] bg-white"
-                    >
-                      <option value="">Geen project</option>
-                      {projects.map(p => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                      ))}
-                    </select>
+                      onChange={setSaveProjectId}
+                      placeholder="Geen project"
+                      options={[{ value: '', label: 'Geen project' }, ...projects.map(p => ({ value: p.id, label: p.name }))]}
+                      className="w-full"
+                    />
                   </div>
                   <button
                     onClick={saveToProject}

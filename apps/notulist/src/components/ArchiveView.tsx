@@ -5,6 +5,7 @@ import { Archive, Search, FileText, Loader2, Calendar, Users } from 'lucide-reac
 import { format } from 'date-fns'
 import { nl } from 'date-fns/locale'
 import { createClient } from '@ibizz/supabase'
+import { Select } from '@ibizz/ui'
 import type { Notulen, Project } from '@ibizz/supabase'
 import NotulenDetailModal from './NotulenDetailModal'
 
@@ -84,22 +85,17 @@ export default function ArchiveView() {
 
       {/* Toolbar */}
       <div className="px-8 py-3 border-b border-gray-100 flex items-center gap-2 flex-wrap">
-        <select
+        <Select
           value={projectFilter}
-          onChange={e => setProjectFilter(e.target.value)}
-          className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 outline-none bg-white focus:border-[#EB4628] cursor-pointer font-medium text-gray-700 transition-colors appearance-none pr-8 bg-no-repeat bg-right"
-          style={{
-            backgroundImage: `url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-            backgroundPosition: 'right 0.5rem center',
-            backgroundSize: '12px',
-          }}
-        >
-          <option value="all">Alle projecten</option>
-          <option value="no-project">Zonder project</option>
-          {projects.map(p => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
+          onChange={setProjectFilter}
+          options={[
+            { value: 'all', label: 'Alle projecten' },
+            { value: 'no-project', label: 'Zonder project' },
+            ...projects.map(p => ({ value: p.id, label: p.name })),
+          ]}
+          className="w-48"
+          compact
+        />
 
         <div className="ml-auto relative">
           <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />

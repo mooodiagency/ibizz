@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Loader2, Sparkles, Check, XCircle, RotateCcw, AlertCircle, TrendingUp, Calendar, ListChecks, PieChart, Edit2, Plus, Trash2, Save, X } from 'lucide-react'
+import { IbizzMark } from '@ibizz/ui'
 import type { SeaStrategy, SeaBudgetItem, SeaCampaignType, SeaTimelineItem, SeaExpectedResults } from '@ibizz/supabase'
 import { createClient } from '@ibizz/supabase'
 import AIChatPanel from './AIChatPanel'
@@ -153,7 +154,7 @@ export default function StrategyView({ briefId, strategy, onUpdated }: Props) {
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
             style={{ backgroundColor: '#EB4628' }}
           >
-            {generating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+            {generating ? <IbizzMark size={14} animate /> : <Sparkles size={14} />}
             {generating ? 'Generating…' : 'Generate strategy'}
           </button>
           {error && (
@@ -202,7 +203,7 @@ export default function StrategyView({ briefId, strategy, onUpdated }: Props) {
               className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-[#EB4628] transition-colors disabled:opacity-50"
               title="Regenerate"
             >
-              {generating ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />}
+              {generating ? <IbizzMark size={12} animate /> : <RotateCcw size={12} />}
               Regenerate
             </button>
           </div>

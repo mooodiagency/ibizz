@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
 import type { SeaNegativeKeyword, SeaMatchType } from '@ibizz/supabase'
-import Select from './Select'
+import { Select } from '@ibizz/ui'
 
 const MATCH_TYPES: SeaMatchType[] = ['broad', 'phrase', 'exact']
 

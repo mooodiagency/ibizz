@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
 import type { Generation, BrandImage } from '@ibizz/supabase'
-import IbizzMark from './IbizzMark'
+import { IbizzMark } from '@ibizz/ui'
 import FormatPicker from './FormatPicker'
 import type { SelectedFormat } from './FormatPicker'
 import { downloadResized } from '@/lib/resize'

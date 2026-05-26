@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { MessageSquare, Send, Loader2, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
+import { MessageSquare, Send, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
+import { IbizzMark } from '@ibizz/ui'
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string }
 
@@ -149,7 +150,7 @@ export default function AIChatPanel({ briefId, step, currentOutput, onIterated, 
             {loading && (
               <div className="flex justify-start">
                 <div className="bg-gray-100 rounded-2xl px-3 py-2 flex items-center gap-2 text-sm text-gray-500">
-                  <Loader2 size={12} className="animate-spin" />
+                  <IbizzMark size={14} animate className="text-[#EB4628]" />
                   AI denkt na en past aan…
                 </div>
               </div>

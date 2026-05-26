@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { X, Loader2, Plus, Trash2, Globe } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
+import { Select } from '@ibizz/ui'
 import type { Brand, SeoBrief } from '@ibizz/supabase'
 import { useAuth } from '@/lib/auth'
 
@@ -152,16 +153,13 @@ export default function NewBriefModal({ onClose, onCreated }: Props) {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <select
+                <Select
                   value={brandId}
-                  onChange={e => setBrandId(e.target.value)}
-                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#EB4628] bg-white"
-                >
-                  <option value="">— Geen merk —</option>
-                  {brands.map(b => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
+                  onChange={setBrandId}
+                  placeholder="— Geen merk —"
+                  options={[{ value: '', label: '— Geen merk —' }, ...brands.map(b => ({ value: b.id, label: b.name }))]}
+                  className="flex-1"
+                />
                 <button
                   type="button"
                   onClick={() => setCreatingBrand(true)}

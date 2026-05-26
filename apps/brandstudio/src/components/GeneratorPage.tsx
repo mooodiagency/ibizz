@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { Plus, X, AlertCircle, Download, Image as ImageIcon } from 'lucide-react'
-import IbizzMark from './IbizzMark'
+import { IbizzMark } from '@ibizz/ui'
 import { createClient } from '@ibizz/supabase'
 import type { BrandImage, Generation } from '@ibizz/supabase'
 import type { ModelId } from '@ibizz/ai-image'

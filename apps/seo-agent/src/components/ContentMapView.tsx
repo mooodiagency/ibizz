@@ -1,9 +1,18 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Map, Plus, Trash2, Loader2, FileText } from 'lucide-react'
+import { Map, Plus, Trash2, Loader2 } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
+import { Select } from '@ibizz/ui'
 import type { SeoPage, SeoPersona, SeoTheme, SeoPageStatus, SeoSearchIntent } from '@ibizz/supabase'
+
+const INTENT_OPTIONS = [
+  { value: '', label: '—' },
+  { value: 'informational', label: 'Informational' },
+  { value: 'commercial', label: 'Commercial' },
+  { value: 'transactional', label: 'Transactional' },
+  { value: 'navigational', label: 'Navigational' },
+]
 
 type Props = {
   briefId: string
@@ -141,26 +150,20 @@ export default function ContentMapView({ briefId, onCountChanged }: Props) {
         </div>
 
         <div className="flex items-center gap-2">
-          <select
+          <Select
             value={filterPersonaId}
-            onChange={e => setFilterPersonaId(e.target.value)}
-            className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none bg-white"
-          >
-            <option value="all">Alle personas</option>
-            {personas.map(p => (
-              <option key={p.id} value={p.id}>{p.avatar_emoji} {p.name}</option>
-            ))}
-          </select>
-          <select
+            onChange={setFilterPersonaId}
+            options={[{ value: 'all', label: 'Alle personas' }, ...personas.map(p => ({ value: p.id, label: `${p.avatar_emoji} ${p.name}` }))]}
+            className="w-40"
+            compact
+          />
+          <Select
             value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value)}
-            className="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none bg-white"
-          >
-            <option value="all">Alle statussen</option>
-            {(Object.keys(STATUS_LABEL) as SeoPageStatus[]).map(s => (
-              <option key={s} value={s}>{STATUS_LABEL[s]}</option>
-            ))}
-          </select>
+            onChange={setFilterStatus}
+            options={[{ value: 'all', label: 'Alle statussen' }, ...(Object.keys(STATUS_LABEL) as SeoPageStatus[]).map(s => ({ value: s, label: STATUS_LABEL[s] }))]}
+            className="w-36"
+            compact
+          />
           {!adding && (
             <button
               onClick={() => setAdding(true)}
@@ -195,26 +198,18 @@ export default function ContentMapView({ briefId, onCountChanged }: Props) {
             className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-[#EB4628]"
           />
           <div className="grid grid-cols-2 gap-2">
-            <select
+            <Select
               value={newPersonaId}
-              onChange={e => setNewPersonaId(e.target.value)}
-              className="text-sm border border-gray-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-[#EB4628] bg-white"
-            >
-              <option value="">— Persona —</option>
-              {personas.map(p => (
-                <option key={p.id} value={p.id}>{p.avatar_emoji} {p.name}</option>
-              ))}
-            </select>
-            <select
+              onChange={setNewPersonaId}
+              placeholder="— Persona —"
+              options={[{ value: '', label: '— Persona —' }, ...personas.map(p => ({ value: p.id, label: `${p.avatar_emoji} ${p.name}` }))]}
+            />
+            <Select
               value={newThemeId}
-              onChange={e => setNewThemeId(e.target.value)}
-              className="text-sm border border-gray-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-[#EB4628] bg-white"
-            >
-              <option value="">— Thema —</option>
-              {themes.map(t => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
+              onChange={setNewThemeId}
+              placeholder="— Thema —"
+              options={[{ value: '', label: '— Thema —' }, ...themes.map(t => ({ value: t.id, label: t.name }))]}
+            />
           </div>
           <div className="flex justify-end gap-2">
             <button onClick={() => { setAdding(false); setNewTopic(''); setNewKeyword('') }} className="px-3 py-1.5 rounded-lg text-xs text-gray-600 hover:bg-gray-100">
@@ -270,15 +265,17 @@ export default function ContentMapView({ briefId, onCountChanged }: Props) {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <select
+                    <Select
+                      variant="badge"
+                      compact
                       value={page.status}
-                      onChange={e => updateStatus(page.id, e.target.value as SeoPageStatus)}
-                      className={`text-[10px] font-semibold uppercase tracking-wide rounded px-1.5 py-0.5 outline-none border-0 cursor-pointer ${STATUS_COLOR[page.status]}`}
-                    >
-                      {(Object.keys(STATUS_LABEL) as SeoPageStatus[]).map(s => (
-                        <option key={s} value={s}>{STATUS_LABEL[s]}</option>
-                      ))}
-                    </select>
+                      onChange={v => updateStatus(page.id, v as SeoPageStatus)}
+                      options={(Object.keys(STATUS_LABEL) as SeoPageStatus[]).map(s => ({
+                        value: s,
+                        label: STATUS_LABEL[s],
+                        className: STATUS_COLOR[s],
+                      }))}
+                    />
                     <button
                       onClick={() => removePage(page.id)}
                       className="p-1 rounded text-gray-400 hover:text-red-500"
@@ -293,31 +290,25 @@ export default function ContentMapView({ briefId, onCountChanged }: Props) {
                     <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">
                       Persona {!page.persona_id && <span className="text-amber-600 normal-case">· vereist</span>}
                     </label>
-                    <select
+                    <Select
                       value={page.persona_id ?? ''}
-                      onChange={e => updatePersona(page.id, e.target.value)}
-                      className={`w-full text-xs border rounded-lg px-2 py-1 outline-none focus:border-[#EB4628] bg-white ${!page.persona_id ? 'border-amber-300' : 'border-gray-200'}`}
-                    >
-                      <option value="">— Selecteer persona —</option>
-                      {personas.map(p => (
-                        <option key={p.id} value={p.id}>{p.avatar_emoji} {p.name}</option>
-                      ))}
-                    </select>
+                      onChange={v => updatePersona(page.id, v)}
+                      placeholder="— Selecteer persona —"
+                      options={[{ value: '', label: '— Selecteer persona —' }, ...personas.map(p => ({ value: p.id, label: `${p.avatar_emoji} ${p.name}` }))]}
+                      compact
+                    />
                   </div>
                   <div>
                     <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">
                       Thema {!page.theme_id && <span className="text-amber-600 normal-case">· vereist</span>}
                     </label>
-                    <select
+                    <Select
                       value={page.theme_id ?? ''}
-                      onChange={e => updateTheme(page.id, e.target.value)}
-                      className={`w-full text-xs border rounded-lg px-2 py-1 outline-none focus:border-[#EB4628] bg-white ${!page.theme_id ? 'border-amber-300' : 'border-gray-200'}`}
-                    >
-                      <option value="">— Selecteer thema —</option>
-                      {themes.map(t => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </select>
+                      onChange={v => updateTheme(page.id, v)}
+                      placeholder="— Selecteer thema —"
+                      options={[{ value: '', label: '— Selecteer thema —' }, ...themes.map(t => ({ value: t.id, label: t.name }))]}
+                      compact
+                    />
                   </div>
                   <div>
                     <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Target keyword</label>
@@ -330,17 +321,12 @@ export default function ContentMapView({ briefId, onCountChanged }: Props) {
                   </div>
                   <div>
                     <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Search intent</label>
-                    <select
+                    <Select
                       value={page.search_intent ?? ''}
-                      onChange={e => updateIntent(page.id, e.target.value as SeoSearchIntent | '')}
-                      className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-[#EB4628] bg-white"
-                    >
-                      <option value="">—</option>
-                      <option value="informational">Informational</option>
-                      <option value="commercial">Commercial</option>
-                      <option value="transactional">Transactional</option>
-                      <option value="navigational">Navigational</option>
-                    </select>
+                      onChange={v => updateIntent(page.id, v as SeoSearchIntent | '')}
+                      options={INTENT_OPTIONS}
+                      compact
+                    />
                   </div>
                 </div>
               </div>

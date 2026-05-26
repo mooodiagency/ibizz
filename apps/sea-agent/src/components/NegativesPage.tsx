@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useRef } from 'react'
 import {
   Loader2, Sparkles, Download, Upload, Search, Plus, Trash2, AlertCircle, CheckCircle2, Ban, Globe, Building2,
 } from 'lucide-react'
-import Select from './Select'
+import { Select } from '@ibizz/ui'
 import * as XLSX from 'xlsx'
 import { createClient } from '@ibizz/supabase'
 import type { SeaNegativeKeyword, SeaMatchType, Brand } from '@ibizz/supabase'

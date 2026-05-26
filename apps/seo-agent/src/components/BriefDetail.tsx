@@ -3,6 +3,7 @@
 import { ArrowLeft, Trash2, Info, Users, Tags, Network, Map, FileText, Globe, ExternalLink, MessageSquare, Newspaper } from 'lucide-react'
 import type { SeoBrief, Brand } from '@ibizz/supabase'
 import { createClient } from '@ibizz/supabase'
+import { Select } from '@ibizz/ui'
 import { format } from 'date-fns'
 import { useCallback, useEffect, useState } from 'react'
 import PersonasView from './PersonasView'
@@ -298,23 +299,23 @@ function OverviewSection({ brief, brand, onUpdated }: { brief: SeoBrief; brand?:
 
       <div className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center gap-3">
         <span className="text-xs text-gray-500">Status:</span>
-        <select
+        <Select
           value={brief.status}
-          onChange={async e => {
-            const newStatus = e.target.value as SeoBrief['status']
+          onChange={async v => {
             const supabase = createClient()
             const { data } = await supabase.from('seo_briefs')
-              .update({ status: newStatus, updated_at: new Date().toISOString() })
+              .update({ status: v as SeoBrief['status'], updated_at: new Date().toISOString() })
               .eq('id', brief.id).select().single()
             if (data) onUpdated(data as SeoBrief)
           }}
-          className="text-xs font-semibold border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-[#EB4628] bg-white"
-        >
-          <option value="draft">Concept</option>
-          <option value="in_review">In review</option>
-          <option value="approved">Goedgekeurd</option>
-          <option value="archived">Gearchiveerd</option>
-        </select>
+          options={[
+            { value: 'draft', label: 'Concept' },
+            { value: 'in_review', label: 'In review' },
+            { value: 'approved', label: 'Goedgekeurd' },
+            { value: 'archived', label: 'Gearchiveerd' },
+          ]}
+          className="w-40"
+        />
       </div>
     </section>
   )

@@ -1,12 +1,14 @@
 'use client'
 
+import { Select } from '@ibizz/ui'
+
 const config = [
   null,
-  { label: 'P1 — Kritiek',  bg: 'bg-red-100',    text: 'text-red-700' },
-  { label: 'P2 — Hoog',     bg: 'bg-orange-100', text: 'text-orange-700' },
-  { label: 'P3 — Normaal',  bg: 'bg-yellow-100', text: 'text-yellow-700' },
-  { label: 'P4 — Laag',     bg: 'bg-blue-100',   text: 'text-blue-600' },
-  { label: 'P5 — Minimaal', bg: 'bg-gray-100',   text: 'text-gray-500' },
+  { label: 'P1 — Kritiek',  className: 'bg-red-100 text-red-700' },
+  { label: 'P2 — Hoog',     className: 'bg-orange-100 text-orange-700' },
+  { label: 'P3 — Normaal',  className: 'bg-yellow-100 text-yellow-700' },
+  { label: 'P4 — Laag',     className: 'bg-blue-100 text-blue-600' },
+  { label: 'P5 — Minimaal', className: 'bg-gray-100 text-gray-500' },
 ]
 
 const short = ['', 'P1', 'P2', 'P3', 'P4', 'P5']
@@ -18,24 +20,23 @@ export default function PrioBadge({ prio, onChange }: Props) {
 
   if (!onChange) {
     return (
-      <span className={`px-2 py-0.5 rounded text-xs font-bold ${c.bg} ${c.text}`}>
+      <span className={`px-2 py-0.5 rounded text-xs font-bold ${c.className}`}>
         {short[prio]}
       </span>
     )
   }
 
   return (
-    <div className="relative">
-      <select
-        value={prio}
-        onChange={e => onChange(Number(e.target.value))}
-        className={`appearance-none px-2 py-0.5 rounded text-xs font-bold cursor-pointer ${c.bg} ${c.text} border-0 outline-none pr-5`}
-      >
-        {[1, 2, 3, 4, 5].map(p => (
-          <option key={p} value={p}>{config[p]!.label}</option>
-        ))}
-      </select>
-      <span className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-current opacity-50 text-[10px]">▾</span>
-    </div>
+    <Select
+      variant="badge"
+      value={String(prio)}
+      onChange={v => onChange(Number(v))}
+      options={[1, 2, 3, 4, 5].map(p => ({
+        value: String(p),
+        label: config[p]!.label,
+        triggerLabel: short[p],
+        className: config[p]!.className,
+      }))}
+    />
   )
 }

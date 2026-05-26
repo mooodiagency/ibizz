@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { FileText, Sparkles, Download, Loader2, CheckCircle2, AlertCircle, Send, RotateCcw, Eye, Newspaper } from 'lucide-react'
+import { IbizzMark } from '@ibizz/ui'
 import { createClient } from '@ibizz/supabase'
 import type { SeoPage, SeoWriterBrief, SeoBrief, SeoPersona, SeoTheme, SeoArticle } from '@ibizz/supabase'
 import { generateWriterBriefPDF } from '@/lib/writer-brief-pdf'
@@ -284,7 +285,7 @@ export default function WriterBriefsView({ briefId, onCountChanged }: Props) {
                                 style={{ backgroundColor: '#EB4628' }}
                                 title="Laat AI het artikel schrijven"
                               >
-                                {generating ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+                                {generating ? <IbizzMark size={11} animate /> : <Sparkles size={11} />}
                                 {generating ? 'Schrijven…' : 'Schrijf met AI'}
                               </button>
                             )
@@ -324,7 +325,7 @@ export default function WriterBriefsView({ briefId, onCountChanged }: Props) {
                             className="p-1.5 rounded-lg text-gray-400 hover:text-[#EB4628] hover:bg-gray-100 disabled:opacity-50"
                             title="Brief opnieuw genereren"
                           >
-                            {generating ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+                            {generating ? <IbizzMark size={11} animate /> : <Sparkles size={11} />}
                           </button>
                         </>
                       ) : (
@@ -334,7 +335,7 @@ export default function WriterBriefsView({ briefId, onCountChanged }: Props) {
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-50"
                           style={{ backgroundColor: '#EB4628' }}
                         >
-                          {generating ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+                          {generating ? <IbizzMark size={11} animate /> : <Sparkles size={11} />}
                           {generating ? 'Genereren…' : 'Brief genereren'}
                         </button>
                       )}

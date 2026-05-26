@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import type { SeaKeywordResearch, SeaCampaign, SeaKeyword, SeaMatchType, SeaIntent } from '@ibizz/supabase'
 import { createClient } from '@ibizz/supabase'
-import Select from './Select'
+import { Select } from '@ibizz/ui'
 import AIChatPanel from './AIChatPanel'
 
 type Props = {

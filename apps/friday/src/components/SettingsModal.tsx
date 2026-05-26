@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { X, Save, User, Briefcase, Building2, Phone, AlignLeft, Circle } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
+import { Select } from '@ibizz/ui'
 import { useAuth } from '@/lib/auth/AuthContext'
 
 const COLORS = [
@@ -127,14 +128,16 @@ export default function SettingsModal({ onClose }: Props) {
             </Field>
 
             <Field icon={<Building2 size={12} />} label="Afdeling">
-              <select
+              <Select
                 value={department}
-                onChange={e => setDepartment(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#EB4628] transition-colors bg-white appearance-none"
-              >
-                <option value="">Kies afdeling</option>
-                {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
+                onChange={setDepartment}
+                placeholder="Kies afdeling"
+                options={[
+                  { value: '', label: 'Kies afdeling' },
+                  ...DEPARTMENTS.map(d => ({ value: d, label: d })),
+                ]}
+                className="w-full"
+              />
             </Field>
           </div>
 
