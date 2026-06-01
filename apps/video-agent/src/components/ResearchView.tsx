@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, Loader2, Hash, AtSign, Link as LinkIcon, ExternalLink, Trash2, Music, Eye, Heart, MessageCircle, Sparkles } from 'lucide-react'
+import { Loader2, Search, Link as LinkIcon, ExternalLink, Trash2, Music, Eye, Heart, MessageCircle, Sparkles } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
 import type { VideoResearch, VideoResearchPlatform } from '@ibizz/supabase'
 import AddResearchModal from './AddResearchModal'
+import DiscoverResearchModal from './DiscoverResearchModal'
 
 type Props = {
   briefId: string
@@ -27,7 +28,8 @@ const PLATFORM_COLOR: Record<VideoResearchPlatform, string> = {
 export default function ResearchView({ briefId }: Props) {
   const [items, setItems] = useState<VideoResearch[]>([])
   const [loading, setLoading] = useState(true)
-  const [modalMode, setModalMode] = useState<'hashtag' | 'account' | 'url' | null>(null)
+  const [discoverOpen, setDiscoverOpen] = useState(false)
+  const [urlOpen, setUrlOpen] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -67,18 +69,25 @@ export default function ResearchView({ briefId }: Props) {
           <div className="bg-white border border-gray-200 border-dashed rounded-2xl p-6 flex flex-col items-center text-center">
             <p className="text-sm font-semibold text-gray-800 mb-1">Nog geen research</p>
             <p className="text-xs text-gray-500 mb-4 max-w-md leading-relaxed">
-              Voeg succesvolle TikTok/Reels/Shorts toe als referentie. De AI gebruikt ze om te
-              snappen wat werkt in deze niche bij het schrijven van scripts.
+              Geef de AI hashtags of trefwoorden, dan zoekt hij online naar succesvolle TikToks.
+              Jij verifieert in de preview wat we toevoegen.
             </p>
-            <Buttons onPick={setModalMode} />
+            <ActionButtons
+              onDiscover={() => setDiscoverOpen(true)}
+              onUrl={() => setUrlOpen(true)}
+            />
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="text-xs text-gray-500">
                 {items.length} {items.length === 1 ? 'referentie' : 'referenties'}
               </div>
-              <Buttons onPick={setModalMode} compact />
+              <ActionButtons
+                onDiscover={() => setDiscoverOpen(true)}
+                onUrl={() => setUrlOpen(true)}
+                compact
+              />
             </div>
 
             <div className="space-y-2">
@@ -95,11 +104,19 @@ export default function ResearchView({ briefId }: Props) {
         )}
       </div>
 
-      {modalMode && (
+      {discoverOpen && (
+        <DiscoverResearchModal
+          briefId={briefId}
+          onClose={() => setDiscoverOpen(false)}
+          onAdded={handleAdded}
+        />
+      )}
+
+      {urlOpen && (
         <AddResearchModal
           briefId={briefId}
-          initialMode={modalMode}
-          onClose={() => setModalMode(null)}
+          initialMode="url"
+          onClose={() => setUrlOpen(false)}
           onAdded={handleAdded}
         />
       )}
@@ -107,22 +124,31 @@ export default function ResearchView({ briefId }: Props) {
   )
 }
 
-function Buttons({ onPick, compact = false }: { onPick: (m: 'hashtag' | 'account' | 'url') => void; compact?: boolean }) {
-  const cls = compact
-    ? 'flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-gray-200 hover:border-[#EB4628] hover:text-[#EB4628] transition-colors'
+function ActionButtons({
+  onDiscover, onUrl, compact = false,
+}: {
+  onDiscover: () => void
+  onUrl: () => void
+  compact?: boolean
+}) {
+  const primaryCls = compact
+    ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white hover:opacity-90'
+    : 'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white hover:opacity-90'
+  const secondaryCls = compact
+    ? 'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border border-gray-200 hover:border-[#EB4628] hover:text-[#EB4628] transition-colors'
     : 'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 hover:border-[#EB4628] hover:text-[#EB4628] transition-colors bg-white'
   return (
     <div className="flex gap-2">
-      <button onClick={() => onPick('hashtag')} className={cls}>
-        <Hash size={compact ? 10 : 12} />
-        Hashtag
+      <button
+        onClick={onDiscover}
+        className={primaryCls}
+        style={{ backgroundColor: '#EB4628' }}
+      >
+        <Search size={compact ? 12 : 14} />
+        Zoek videos
       </button>
-      <button onClick={() => onPick('account')} className={cls}>
-        <AtSign size={compact ? 10 : 12} />
-        Account
-      </button>
-      <button onClick={() => onPick('url')} className={cls}>
-        <LinkIcon size={compact ? 10 : 12} />
+      <button onClick={onUrl} className={secondaryCls}>
+        <LinkIcon size={compact ? 11 : 12} />
         Plak URL
       </button>
     </div>

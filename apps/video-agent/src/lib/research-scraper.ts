@@ -4,15 +4,16 @@
  * Doel: succesvolle TikTok/IG/YouTube Shorts videos ophalen die de AI als
  * referentie kan gebruiken bij script-generatie.
  *
- * Twee modes:
+ * Modes:
  *  1. Manuele URL — gebruikt officiële oEmbed endpoints (rock-solid)
- *  2. Hashtag / account scrape — fetch + parse __UNIVERSAL_DATA_FOR_REHYDRATION__
- *     uit TikTok HTML. Best-effort, breekt soms door anti-bot.
- *
- * Geen Playwright (nog) — eerst kijken hoever fetch+parse komt. Als TikTok
- * te vaak weigert: Fase 3.5 voegt Playwright als fallback toe.
+ *  2. Discover via DuckDuckGo — site:tiktok.com {query} omzeilt TikTok's
+ *     anti-bot, vindt videos via search engine, enricht per stuk met
+ *     oEmbed + best-effort stats parse uit video-page
+ *  3. Hashtag / account scrape — fetch + parse __UNIVERSAL_DATA_FOR_REHYDRATION__
+ *     uit TikTok HTML. Werkt soms, blokt vaak. (Legacy)
  */
 
+import * as cheerio from 'cheerio'
 import type { VideoResearchPlatform } from '@ibizz/supabase'
 
 const USER_AGENT = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
@@ -305,6 +306,247 @@ export async function scrapeTikTokAccount(username: string, limit = 12): Promise
   }
 
   return { ok: false, reason: 'Geen video-lijst gevonden voor dit account (mogelijk privé, leeg, of TikTok blokkeert)' }
+}
+
+// ─── DuckDuckGo search ──────────────────────────────────────────────────
+const DDG_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+const DDG_TIMEOUT_MS = 25_000
+
+/**
+ * Zoek videos via DuckDuckGo (zonder anti-bot drama). Geeft TikTok
+ * video-URLs terug die gevonden zijn voor "site:tiktok.com {query}".
+ */
+export async function searchDuckDuckGo(query: string, max = 20): Promise<string[]> {
+  // Normaliseer query — @user en #hashtag worden meegenomen door DDG
+  const q = `site:tiktok.com ${query.trim()}`
+
+  // DDG html endpoint geeft simpele markup terug (geen JS nodig)
+  const endpoints = [
+    `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`,
+    `https://duckduckgo.com/html/?q=${encodeURIComponent(q)}`,
+  ]
+
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': DDG_USER_AGENT,
+          'Accept': 'text/html,application/xhtml+xml',
+          'Accept-Language': 'en-US,en;q=0.9,nl;q=0.8',
+        },
+        signal: AbortSignal.timeout(DDG_TIMEOUT_MS),
+        redirect: 'follow',
+      })
+      if (!res.ok) continue
+      const html = await res.text()
+      const urls = parseDuckDuckGoResults(html, max)
+      if (urls.length > 0) return urls
+    } catch { /* try next */ }
+  }
+  return []
+}
+
+function parseDuckDuckGoResults(html: string, max: number): string[] {
+  const $ = cheerio.load(html)
+  const urls: string[] = []
+  const seen = new Set<string>()
+
+  // DDG result links zitten in `a.result__a` of `a.result__url`
+  // De href is meestal een DDG redirect: /l/?uddg=ENCODED_URL
+  $('a.result__a, a.result__url').each((_, el) => {
+    if (urls.length >= max) return
+    const href = $(el).attr('href') ?? ''
+    let realUrl: string | null = null
+
+    // Probeer uddg param uit te pakken
+    try {
+      // href kan beginnen met "//duckduckgo.com/l/?..." of "/l/?..."
+      const full = href.startsWith('http') ? href : (href.startsWith('//') ? `https:${href}` : `https://duckduckgo.com${href}`)
+      const u = new URL(full)
+      const uddg = u.searchParams.get('uddg')
+      if (uddg) realUrl = decodeURIComponent(uddg)
+      else if (u.hostname.includes('tiktok.com')) realUrl = full
+    } catch { /* skip */ }
+
+    if (realUrl && /tiktok\.com\/@[^/]+\/video\/\d+/.test(realUrl)) {
+      const clean = realUrl.split('?')[0].replace(/\/$/, '')
+      if (!seen.has(clean)) {
+        seen.add(clean)
+        urls.push(clean)
+      }
+    }
+  })
+
+  return urls
+}
+
+// ─── TikTok video page stats ────────────────────────────────────────────
+type TikTokVideoStats = {
+  views: number | null
+  likes: number | null
+  comments: number | null
+}
+
+async function fetchTikTokVideoStats(url: string): Promise<TikTokVideoStats | null> {
+  const html = await fetchTikTokHtml(url)
+  if (!html) return null
+  const data = extractUniversalData(html)
+  if (!data) return null
+
+  // Modern format: webapp.video-detail.itemInfo.itemStruct.stats
+  const stats = getNested(data, ['__DEFAULT_SCOPE__', 'webapp.video-detail', 'itemInfo', 'itemStruct', 'stats'])
+  if (stats && typeof stats === 'object') {
+    const s = stats as Record<string, unknown>
+    return {
+      views: typeof s.playCount === 'number' ? s.playCount : null,
+      likes: typeof s.diggCount === 'number' ? s.diggCount : null,
+      comments: typeof s.commentCount === 'number' ? s.commentCount : null,
+    }
+  }
+
+  // Legacy SIGI ItemModule (gebruikt videoId als key)
+  const itemModule = getNested(data, ['ItemModule']) as Record<string, TikTokItem> | undefined
+  if (itemModule && typeof itemModule === 'object') {
+    const firstItem = Object.values(itemModule)[0]
+    if (firstItem?.stats) {
+      return {
+        views: firstItem.stats.playCount ?? null,
+        likes: firstItem.stats.diggCount ?? null,
+        comments: firstItem.stats.commentCount ?? null,
+      }
+    }
+  }
+
+  return null
+}
+
+// ─── Discovery — gecombineerde flow ─────────────────────────────────────
+export type DiscoveryItem = {
+  platform: 'tiktok'
+  url: string
+  caption: string | null
+  views: number | null
+  likes: number | null
+  comments: number | null
+  author: string | null
+  thumbnailUrl: string | null
+  videoId: string | null
+  sourceQuery: string
+  /** Heeft de gebruiker deze URL al in zijn research staan? */
+  alreadyAdded: boolean
+}
+
+export type DiscoveryResult = {
+  items: DiscoveryItem[]
+  perQuerySummary: { query: string; found: number }[]
+  duckduckgoOk: boolean
+}
+
+/**
+ * Enrich een TikTok video URL met caption (oEmbed) + stats (page parse).
+ * oEmbed is rock-solid. Stats parse kan falen (geeft nulls).
+ */
+async function enrichTikTokVideoForDiscovery(url: string, sourceQuery: string): Promise<DiscoveryItem> {
+  const [oeRes, statsRes] = await Promise.allSettled([
+    tiktokOEmbedForDiscovery(url),
+    fetchTikTokVideoStats(url),
+  ])
+
+  const oe = oeRes.status === 'fulfilled' ? oeRes.value : null
+  const stats = statsRes.status === 'fulfilled' ? statsRes.value : null
+  const videoId = extractTikTokVideoIdShared(url)
+
+  return {
+    platform: 'tiktok',
+    url,
+    caption: oe?.title ?? null,
+    views: stats?.views ?? null,
+    likes: stats?.likes ?? null,
+    comments: stats?.comments ?? null,
+    author: oe?.author_name ?? null,
+    thumbnailUrl: oe?.thumbnail_url ?? null,
+    videoId,
+    sourceQuery,
+    alreadyAdded: false,
+  }
+}
+
+// kleine oEmbed wrapper voor discovery (niet exporten — al via enrichUrl wel)
+async function tiktokOEmbedForDiscovery(url: string): Promise<{ title?: string; author_name?: string; thumbnail_url?: string } | null> {
+  try {
+    const res = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`, {
+      headers: { 'User-Agent': USER_AGENT, 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+    })
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
+function extractTikTokVideoIdShared(url: string): string | null {
+  const m = url.match(/tiktok\.com\/@[^/]+\/video\/(\d+)/)
+  return m ? m[1] : null
+}
+
+/**
+ * Discover-orchestrator: zoekt voor elke query op DuckDuckGo, enricht
+ * gevonden videos, deduppt, sorteert (videos met views komen boven).
+ */
+export async function discoverTikTokVideos(args: {
+  queries: string[]
+  perQuery?: number
+  existingUrls?: string[]
+}): Promise<DiscoveryResult> {
+  const queries = args.queries.map(q => q.trim()).filter(Boolean)
+  const perQuery = Math.max(1, Math.min(20, args.perQuery ?? 8))
+  const existingUrls = new Set(args.existingUrls ?? [])
+
+  // 1. Voor elke query → DDG search
+  const searchResults = await Promise.all(
+    queries.map(async q => {
+      const urls = await searchDuckDuckGo(q, perQuery * 2)  // overscan voor dedup
+      return { query: q, urls }
+    })
+  )
+
+  const duckduckgoOk = searchResults.some(r => r.urls.length > 0)
+  const perQuerySummary = searchResults.map(r => ({ query: r.query, found: r.urls.length }))
+
+  // 2. Dedup over alle queries — bewaar eerst-gevonden source-query
+  const urlToQuery = new Map<string, string>()
+  for (const { query, urls } of searchResults) {
+    for (const url of urls.slice(0, perQuery)) {
+      if (!urlToQuery.has(url)) urlToQuery.set(url, query)
+    }
+  }
+
+  // 3. Enrich elke unieke URL (parallel, ratelimit op 5)
+  const uniqueUrls = Array.from(urlToQuery.entries())
+  const items: DiscoveryItem[] = []
+  const concurrency = 5
+  let idx = 0
+  async function worker() {
+    while (idx < uniqueUrls.length) {
+      const i = idx++
+      const [url, sourceQuery] = uniqueUrls[i]
+      const item = await enrichTikTokVideoForDiscovery(url, sourceQuery)
+      item.alreadyAdded = existingUrls.has(url)
+      items.push(item)
+    }
+  }
+  await Promise.all(Array.from({ length: concurrency }, worker))
+
+  // 4. Sorteer — videos met views komen boven, daarna order
+  items.sort((a, b) => {
+    if (a.views != null && b.views != null) return b.views - a.views
+    if (a.views != null) return -1
+    if (b.views != null) return 1
+    return 0
+  })
+
+  return { items, perQuerySummary, duckduckgoOk }
 }
 
 // ─── LLM context helper ─────────────────────────────────────────────────
