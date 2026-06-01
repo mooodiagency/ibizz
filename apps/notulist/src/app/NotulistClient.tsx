@@ -17,6 +17,7 @@ const APP_URLS: Record<AppId, string> = {
   brandstudio: process.env.NEXT_PUBLIC_BRANDSTUDIO_URL ?? 'http://localhost:3002',
   'sea-agent': process.env.NEXT_PUBLIC_SEA_AGENT_URL ?? 'http://localhost:3003',
   'seo-agent': process.env.NEXT_PUBLIC_SEO_AGENT_URL ?? 'http://localhost:3005',
+  'video-agent': process.env.NEXT_PUBLIC_VIDEO_AGENT_URL ?? 'http://localhost:3006',
 }
 
 type Phase = 'idle' | 'recording' | 'transcribing' | 'generating' | 'done'

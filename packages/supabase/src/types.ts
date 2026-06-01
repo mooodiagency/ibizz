@@ -323,6 +323,133 @@ export type SeoLesson = {
   created_by: string | null
 }
 
+// ─── Video Agent ────────────────────────────────────────────────────────
+export type VideoBriefStatus = 'draft' | 'in_review' | 'approved' | 'archived'
+export type VideoKostencategorie = 'LAAG' | 'LAAG-MIDDEL' | 'MIDDEL' | 'MIDDEL-HOOG' | 'HOOG'
+export type VideoShotTag = 'REAL' | 'CGI' | 'STOCK'
+export type VideoResearchPlatform = 'tiktok' | 'instagram' | 'youtube_shorts' | 'other'
+
+export type VideoCastRole = {
+  rol: string                                // bv. "hoofdactrice (FRENKY-drager)"
+  aantal: number                             // 1, 2, 4-5 → opslaan als max (5)
+  omschrijving: string | null                // "25-40 jaar, sterke uitstraling, casual reisstijl"
+}
+
+export type VideoLocation = {
+  naam: string                               // "Eindhoven Airport (publiek)"
+  scripts: number[]                          // [1, 2, 3, 4]
+  toelichting: string | null                 // "5 scripts op één halve dag"
+}
+
+export type VideoBriefChange = {
+  script_nummer: number | null               // null = brief-level change
+  veld: string | null                        // bv "hook" / "locatie" / null
+  tekst: string                              // bv "nieuwe vang-hook — actrice vangt FRENKY"
+}
+
+export type VideoProductieToets = {
+  cast: string                               // "1 actrice"
+  locatie: string                            // "Eindhoven Airport publiek"
+  props: string                              // "FRENKY (gevuld voor gewicht), casual outfit"
+  permits: string                            // "Geen — DJI OSMO Pocket 3 handheld"
+  productietijd: string                      // "3 uur incl. reis"
+  risico: string                             // "Drukte kan opnames hinderen — vroege ochtend"
+  kostencategorie: VideoKostencategorie
+}
+
+export type VideoShot = {
+  nummer: number
+  tag: VideoShotTag
+  beschrijving: string                       // "Wide — vrouw staat op vliegveld, FRENKY vliegt in"
+  start_sec: number
+  end_sec: number
+}
+
+export type VideoScriptLine = {
+  type: 'vo' | 'direction'                   // 'vo' = voice-over (italic quotes), 'direction' = "(beat)"
+  text: string
+}
+
+export type VideoTextOverlay = {
+  start_sec: number
+  end_sec: number | null                     // null = "Eind"
+  text: string
+}
+
+export type VideoBrief = {
+  id: string
+  brand_id: string | null
+  dag_titel: string                          // "Dag 1 — Op locatie"
+  intro_subtitel: string | null              // "ibizz × FRENKY"
+  overzicht: string | null                   // korte beschrijving wat in deze dag zit
+  brand_context: string | null               // vrije tekst — ToV, positionering, doelgroep, USP's (input voor AI prompt)
+  cast_totaal: VideoCastRole[]               // alle rollen gebundeld over alle scripts
+  locaties: VideoLocation[]
+  status: VideoBriefStatus
+  versie: number                             // huidige versie nummer (start op 1, bumpt bij snapshot)
+  created_by: string | null
+  created_by_name: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type VideoScript = {
+  id: string
+  brief_id: string
+  nummer: number                             // 1..N
+  titel: string                              // "De stille walk-by"
+  doel: string | null
+  inzicht: string | null
+  locatie: string | null
+  lengte_sec: number | null                  // ~35
+  cast_rollen: VideoCastRole[]               // 'cast' is reserved in Postgres → opgeslagen als cast_rollen
+  productie_toets: VideoProductieToets | null
+  hook: string | null
+  concept: string | null
+  script_lines: VideoScriptLine[]            // voice-over + (beat)-directions in volgorde
+  shotlist: VideoShot[]
+  tekst_in_beeld: VideoTextOverlay[]
+  montage: string | null
+  cta: string | null
+  caption: string | null
+  variaties: string[]                        // alternatieve CTA/hook regels
+  created_at: string
+  updated_at: string
+}
+
+export type VideoResearch = {
+  id: string
+  brief_id: string
+  platform: VideoResearchPlatform
+  url: string
+  caption: string | null
+  views: number | null
+  likes: number | null
+  comments: number | null
+  transcript: string | null                  // eerste 3 sec / hele video
+  hook_pattern: string | null                // welke hook-techniek (POV, vergelijking, etc.)
+  notes: string | null
+  source: 'scraped' | 'manual'
+  added_by: string | null
+  added_by_name: string | null
+  created_at: string
+}
+
+export type VideoBriefVersionSnapshot = {
+  brief: VideoBrief
+  scripts: VideoScript[]
+}
+
+export type VideoBriefVersion = {
+  id: string
+  brief_id: string
+  versie: number
+  snapshot: VideoBriefVersionSnapshot
+  changelog: VideoBriefChange[]              // auto-gegenereerde "→ Script X: ..." regels
+  created_at: string
+  created_by: string | null
+}
+
 export type GenerationStatus = 'draft' | 'approved' | 'rejected'
 
 export type Generation = {
@@ -839,6 +966,91 @@ export type Database = {
           created_by?: string | null
         }
         Update: Partial<Pick<SeoLesson, 'type' | 'description' | 'context'>>
+        Relationships: []
+      }
+      video_briefs: {
+        Row: VideoBrief
+        Insert: {
+          id?: string
+          brand_id?: string | null
+          dag_titel: string
+          intro_subtitel?: string | null
+          overzicht?: string | null
+          brand_context?: string | null
+          cast_totaal?: VideoCastRole[]
+          locaties?: VideoLocation[]
+          status?: VideoBriefStatus
+          versie?: number
+          created_by?: string | null
+          created_by_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Omit<VideoBrief, 'id' | 'created_at'>>
+        Relationships: []
+      }
+      video_scripts: {
+        Row: VideoScript
+        Insert: {
+          id?: string
+          brief_id: string
+          nummer: number
+          titel: string
+          doel?: string | null
+          inzicht?: string | null
+          locatie?: string | null
+          lengte_sec?: number | null
+          cast_rollen?: VideoCastRole[]
+          productie_toets?: VideoProductieToets | null
+          hook?: string | null
+          concept?: string | null
+          script_lines?: VideoScriptLine[]
+          shotlist?: VideoShot[]
+          tekst_in_beeld?: VideoTextOverlay[]
+          montage?: string | null
+          cta?: string | null
+          caption?: string | null
+          variaties?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Omit<VideoScript, 'id' | 'brief_id' | 'created_at'>>
+        Relationships: []
+      }
+      video_research: {
+        Row: VideoResearch
+        Insert: {
+          id?: string
+          brief_id: string
+          platform: VideoResearchPlatform
+          url: string
+          caption?: string | null
+          views?: number | null
+          likes?: number | null
+          comments?: number | null
+          transcript?: string | null
+          hook_pattern?: string | null
+          notes?: string | null
+          source?: 'scraped' | 'manual'
+          added_by?: string | null
+          added_by_name?: string | null
+          created_at?: string
+        }
+        Update: Partial<Pick<VideoResearch, 'caption' | 'views' | 'likes' | 'comments' | 'transcript' | 'hook_pattern' | 'notes'>>
+        Relationships: []
+      }
+      video_brief_versions: {
+        Row: VideoBriefVersion
+        Insert: {
+          id?: string
+          brief_id: string
+          versie: number
+          snapshot: VideoBriefVersionSnapshot
+          changelog?: VideoBriefChange[]
+          created_at?: string
+          created_by?: string | null
+        }
+        Update: never
         Relationships: []
       }
       generations: {

@@ -8,7 +8,6 @@ import LoginPage from './LoginPage'
 import Sidebar from './Sidebar'
 import type { SidebarView } from './Sidebar'
 import BriefsPage from './BriefsPage'
-import LessonsPage from './LessonsPage'
 
 const APP_URLS: Record<AppId, string> = {
   friday: process.env.NEXT_PUBLIC_FRIDAY_URL ?? 'http://localhost:3000',
@@ -36,7 +35,7 @@ export default function Shell() {
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       <TopBar
-        currentApp="seo-agent"
+        currentApp="video-agent"
         appUrls={APP_URLS}
         userName={userName}
         userColor="#EB4628"
@@ -45,9 +44,25 @@ export default function Shell() {
       <div className="flex flex-1 overflow-hidden">
         <Sidebar view={view} onSelect={setView} />
         <main className="flex-1 overflow-hidden">
-          {view === 'briefs' ? <BriefsPage /> : <LessonsPage />}
+          {view === 'briefs' ? (
+            <BriefsPage />
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center text-gray-400 px-8">
+              <Lightbulb />
+              <p className="text-sm font-semibold text-gray-600 mt-3 mb-1">Lessons learned</p>
+              <p className="text-xs text-gray-400">Komt in een latere fase — wat werkte wel/niet per script-type.</p>
+            </div>
+          )}
         </main>
       </div>
+    </div>
+  )
+}
+
+function Lightbulb() {
+  return (
+    <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center">
+      <span className="text-xl">💡</span>
     </div>
   )
 }

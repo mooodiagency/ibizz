@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { LayoutGrid, Check, ExternalLink } from 'lucide-react'
 
-export type AppId = 'friday' | 'notulist' | 'brandstudio' | 'sea-agent' | 'seo-agent'
+export type AppId = 'friday' | 'notulist' | 'brandstudio' | 'sea-agent' | 'seo-agent' | 'video-agent'
 
 type AppEntry = {
   id: AppId
@@ -48,6 +48,13 @@ const APPS: AppEntry[] = [
     description: 'Persona-gedreven content SEO',
     icon: '🔍',
     color: '#0ea5e9',
+  },
+  {
+    id: 'video-agent',
+    name: 'Video Agent',
+    description: 'Reels & TikTok shooting briefs',
+    icon: '🎬',
+    color: '#f43f5e',
   },
 ]
 
