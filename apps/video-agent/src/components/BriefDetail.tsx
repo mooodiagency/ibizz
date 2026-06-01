@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Trash2, Plus, X, MapPin, Users, FileText, History, Film, BookOpen, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Trash2, Plus, X, MapPin, Users, FileText, History, Film, BookOpen, CheckCircle2, Globe } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
 import { Select } from '@ibizz/ui'
 import type { VideoBrief, VideoBriefStatus, Brand, VideoCastRole, VideoLocation } from '@ibizz/supabase'
 import ScriptsView from './ScriptsView'
+import ScrapeBrandModal, { type ScrapeStats } from './ScrapeBrandModal'
 
 type Props = {
   brief: VideoBrief
@@ -33,6 +34,8 @@ export default function BriefDetail({ brief, brand, onBack, onUpdated, onDeleted
   const [local, setLocal] = useState<VideoBrief>(brief)
   const [savedAt, setSavedAt] = useState<number | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [scrapeOpen, setScrapeOpen] = useState(false)
+  const [scrapeStats, setScrapeStats] = useState<ScrapeStats | null>(null)
   const supabase = createClient()
 
   // Sync wanneer parent een geupdate brief stuurt (bv. na save elders)
@@ -140,20 +143,53 @@ export default function BriefDetail({ brief, brand, onBack, onUpdated, onDeleted
         </Section>
 
         {/* Brand context */}
-        <Section
-          title="Brand context"
-          icon={<BookOpen size={14} />}
-          subtitle="Wat de AI moet weten over het merk om scripts te schrijven"
-        >
+        <section>
+          <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-[#EB4628]"><BookOpen size={14} /></span>
+              <h2 className="text-sm font-bold text-gray-800">Brand context</h2>
+              <span className="text-xs text-gray-400">— Wat de AI moet weten over het merk</span>
+            </div>
+            <button
+              onClick={() => setScrapeOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#EB4628] border border-orange-200 hover:bg-orange-50 transition-colors"
+              title="Crawl de klantwebsite en laat AI de brand context schrijven"
+            >
+              <Globe size={11} />
+              {local.brand_context ? 'Opnieuw scrapen' : 'Scrape via website'}
+            </button>
+          </div>
+
           <textarea
             value={local.brand_context ?? ''}
             onChange={e => setLocal(prev => ({ ...prev, brand_context: e.target.value }))}
             onBlur={e => patch({ brand_context: e.target.value.trim() || null })}
-            placeholder={`Beschrijf: product/dienst, USP's, doelgroep, tone-of-voice, positionering, do's & don'ts. Bijv:\n\nFRENKY is een reistas die niet hoeft te worden ingecheckt. Past in elke handbagage-eis. Doelgroep: 25-40 jaar, frequent weekend-reiziger. Tone: droog, rustig, zelfverzekerd. Vermijd: lifestyle-clichés, "ervaar de revolutie", overdreven emotie.`}
-            rows={6}
-            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm leading-relaxed outline-none focus:border-[#EB4628] resize-none bg-white"
+            placeholder={`Beschrijf: product/dienst, USP's, doelgroep, tone-of-voice, positionering, do's & don'ts.\n\nOf klik op "Scrape via website" rechtsboven om AI 12 pagina's van de klantwebsite te laten analyseren.`}
+            rows={local.brand_context ? 12 : 6}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm leading-relaxed outline-none focus:border-[#EB4628] resize-none bg-white font-mono"
           />
-        </Section>
+
+          {scrapeStats && (
+            <div className="mt-2 flex items-center gap-3 text-[11px] text-gray-500">
+              <span className="inline-flex items-center gap-1 text-green-700">
+                <CheckCircle2 size={11} />
+                {scrapeStats.pagesScraped} pagina&apos;s gescraped
+              </span>
+              {scrapeStats.pagesFailed > 0 && (
+                <span className="text-amber-600">{scrapeStats.pagesFailed} mislukt</span>
+              )}
+              <span>· via {scrapeStats.source === 'sitemap' ? 'sitemap.xml' : 'link-discovery'}</span>
+              <span>· {(scrapeStats.crawlMs / 1000).toFixed(1)}s</span>
+              <button
+                onClick={() => setScrapeStats(null)}
+                className="ml-auto text-gray-400 hover:text-gray-700"
+                title="Sluiten"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          )}
+        </section>
 
         {/* Cast totaal */}
         <Section
@@ -190,6 +226,20 @@ export default function BriefDetail({ brief, brand, onBack, onUpdated, onDeleted
           </div>
         </Section>
       </div>
+
+      {/* Scrape brand modal */}
+      {scrapeOpen && (
+        <ScrapeBrandModal
+          briefId={local.id}
+          hasExistingContext={!!local.brand_context}
+          onClose={() => setScrapeOpen(false)}
+          onScraped={(updated, stats) => {
+            setLocal(updated)
+            onUpdated(updated)
+            setScrapeStats(stats)
+          }}
+        />
+      )}
 
       {/* Confirm delete modal */}
       {confirmDelete && (
