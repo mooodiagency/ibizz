@@ -6,6 +6,7 @@ import type {
   Database,
   VideoBrief,
   VideoScript,
+  VideoResearch,
   Brand,
   VideoCastRole,
   VideoLocation,
@@ -17,6 +18,7 @@ import type {
   VideoKostencategorie,
 } from '@ibizz/supabase'
 import { cookies } from 'next/headers'
+import { researchToLlmContext } from '@/lib/research-scraper'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -175,11 +177,12 @@ function normalizeOverlays(v: unknown): VideoTextOverlay[] {
 function buildPrompt(args: {
   brandName: string
   brief: VideoBrief
+  research: VideoResearch[]
   aantal: number
   lengteSec: number
   creatieveRichting: string
 }): string {
-  const { brandName, brief, aantal, lengteSec, creatieveRichting } = args
+  const { brandName, brief, research, aantal, lengteSec, creatieveRichting } = args
 
   const castContext = brief.cast_totaal && brief.cast_totaal.length > 0
     ? brief.cast_totaal.map(c => `- ${c.aantal}× ${c.rol}${c.omschrijving ? ` — ${c.omschrijving}` : ''}`).join('\n')
@@ -188,6 +191,11 @@ function buildPrompt(args: {
   const locatieContext = brief.locaties && brief.locaties.length > 0
     ? brief.locaties.map(l => `- ${l.naam}${l.toelichting ? ` — ${l.toelichting}` : ''}${l.scripts.length > 0 ? ` (gepland voor scripts: ${l.scripts.join(', ')})` : ''}`).join('\n')
     : '(geen vaste locaties opgegeven — kies zelf realistische publieke locaties)'
+
+  // Research videos — alleen meegeven als er items zijn
+  const researchBlock = research.length > 0
+    ? `\n\n${researchToLlmContext(research)}\n**Gebruik deze referenties als inspiratie**, niet om te kopiëren. Wat werkt qua hooks, ritme, captions, hook-patterns? Vermijd dezelfde concepten letterlijk overdoen.`
+    : ''
 
   return `Je bent een senior Nederlandse creative director gespecialiseerd in TikTok, Instagram Reels en YouTube Shorts voor merken. Je schrijft shooting briefs op productie-niveau: niet alleen wat de kijker hoort/ziet, maar ook hoe het gefilmd wordt, met welke cast, kostenplaatje en risico's.
 
@@ -209,7 +217,7 @@ ${locatieContext}
 **Creatieve richting voor deze sessie:**
 ${creatieveRichting || '(geen specifieke richting — gebruik je eigen oordeel passend bij het merk)'}
 
-**Doel-lengte per script:** ~${lengteSec} seconden
+**Doel-lengte per script:** ~${lengteSec} seconden${researchBlock}
 
 # OUTPUT FORMAT
 
@@ -324,8 +332,17 @@ export async function POST(req: NextRequest) {
       if (brRes.data) brandName = (brRes.data as Brand).name
     }
 
+    // Research items meegeven aan AI (top 15 — meer is overkill voor de prompt)
+    const researchRes = await supabase
+      .from('video_research')
+      .select('*')
+      .eq('brief_id', body.briefId)
+      .order('views', { ascending: false, nullsFirst: false })
+      .limit(15)
+    const research = (researchRes.data ?? []) as VideoResearch[]
+
     // Prompt opbouwen
-    const prompt = buildPrompt({ brandName, brief, aantal, lengteSec, creatieveRichting })
+    const prompt = buildPrompt({ brandName, brief, research, aantal, lengteSec, creatieveRichting })
 
     // Claude aanroepen
     const aiRes = await fetch('https://api.anthropic.com/v1/messages', {

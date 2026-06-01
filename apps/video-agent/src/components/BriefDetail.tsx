@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Trash2, Plus, X, MapPin, Users, FileText, History, Film, BookOpen, CheckCircle2, Globe } from 'lucide-react'
+import { ArrowLeft, Trash2, Plus, X, MapPin, Users, FileText, History, Film, BookOpen, CheckCircle2, Globe, Sparkles } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
 import { Select } from '@ibizz/ui'
 import type { VideoBrief, VideoBriefStatus, Brand, VideoCastRole, VideoLocation } from '@ibizz/supabase'
 import ScriptsView from './ScriptsView'
 import ScrapeBrandModal, { type ScrapeStats } from './ScrapeBrandModal'
+import ResearchView from './ResearchView'
 
 type Props = {
   brief: VideoBrief
@@ -207,6 +208,15 @@ export default function BriefDetail({ brief, brand, onBack, onUpdated, onDeleted
           subtitle="Productielocaties met welke scripts er gefilmd worden"
         >
           <LocationsEditor locaties={local.locaties ?? []} onChange={setLocaties} />
+        </Section>
+
+        {/* Research */}
+        <Section
+          title="Research"
+          icon={<Sparkles size={14} />}
+          subtitle="Referentievideo's die laten zien wat werkt in deze niche"
+        >
+          <ResearchView briefId={local.id} />
         </Section>
 
         {/* Scripts */}

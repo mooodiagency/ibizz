@@ -383,6 +383,11 @@ export async function crawlSite(rawRootUrl: string, maxPages = 12): Promise<Craw
 }
 
 // ─── LLM context helper ─────────────────────────────────────────────────
+// Per pagina krap houden — 12 pagina's × 3500 chars + wrappers ≈ ~12k tokens
+// Ruim binnen Sonnet's window maar zonder onnodig veel input-tokens te betalen.
+const MAX_MARKDOWN_PER_PAGE_FOR_LLM = 3500
+const MAX_HEADINGS_PER_PAGE_FOR_LLM = 6
+
 export function pagesToLlmContext(pages: ScrapedPage[]): string {
   const blocks: string[] = []
   for (const p of pages) {
@@ -390,11 +395,15 @@ export function pagesToLlmContext(pages: ScrapedPage[]): string {
     if (p.description) lines.push(`Description: ${p.description}`)
     if (p.headings.length > 0) {
       lines.push('', 'Headings:')
-      for (const h of p.headings.slice(0, 12)) {
+      for (const h of p.headings.slice(0, MAX_HEADINGS_PER_PAGE_FOR_LLM)) {
         lines.push(`${'  '.repeat(Math.max(0, h.level - 1))}- ${h.text}`)
       }
     }
-    lines.push('', p.markdown)
+    let md = p.markdown
+    if (md.length > MAX_MARKDOWN_PER_PAGE_FOR_LLM) {
+      md = md.slice(0, MAX_MARKDOWN_PER_PAGE_FOR_LLM) + '\n…(rest weggelaten)'
+    }
+    lines.push('', md)
     blocks.push(lines.join('\n'))
   }
   return blocks.join('\n\n---\n\n')

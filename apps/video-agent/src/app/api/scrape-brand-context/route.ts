@@ -130,6 +130,11 @@ export async function POST(req: NextRequest) {
       pageCount: crawl.pages.length,
     })
 
+    // Rough token estimate — Claude rekent ~3.5-4 chars/token voor NL/EN mix
+    const promptChars = prompt.length
+    const tokenEstimate = Math.round(promptChars / 3.5)
+    console.log(`[scrape-brand-context] prompt: ${promptChars} chars (~${tokenEstimate} tokens), ${crawl.pages.length} pages`)
+
     const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -146,8 +151,19 @@ export async function POST(req: NextRequest) {
 
     if (!aiRes.ok) {
       const errText = await aiRes.text()
-      console.error('Anthropic error:', aiRes.status, errText.slice(0, 500))
-      return NextResponse.json({ error: `AI synthesis mislukt (${aiRes.status})` }, { status: 500 })
+      console.error('Anthropic error:', aiRes.status, errText.slice(0, 1000))
+      // Probeer de specifieke error message uit het JSON antwoord te halen
+      let detail = errText.slice(0, 300)
+      try {
+        const errJson = JSON.parse(errText) as { error?: { type?: string; message?: string } }
+        if (errJson?.error?.message) {
+          detail = `${errJson.error.type ?? 'error'}: ${errJson.error.message}`
+        }
+      } catch { /* not JSON, keep raw text */ }
+      return NextResponse.json({
+        error: `AI synthesis mislukt (${aiRes.status}): ${detail}`,
+        debug: { promptChars, tokenEstimate, pageCount: crawl.pages.length },
+      }, { status: 500 })
     }
 
     const aiData = await aiRes.json()
