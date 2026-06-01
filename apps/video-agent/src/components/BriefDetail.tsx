@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Trash2, Plus, X, MapPin, Users, FileText, History, Film, BookOpen, CheckCircle2, Globe, Sparkles } from 'lucide-react'
+import { ArrowLeft, Trash2, Plus, X, MapPin, Users, FileText, History, Film, BookOpen, CheckCircle2, Globe, Sparkles, Download } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
 import { Select } from '@ibizz/ui'
 import type { VideoBrief, VideoBriefStatus, Brand, VideoCastRole, VideoLocation } from '@ibizz/supabase'
@@ -98,6 +98,15 @@ export default function BriefDetail({ brief, brand, onBack, onUpdated, onDeleted
             <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
               v{local.versie}
             </span>
+            <a
+              href={`/api/export-brief-docx?briefId=${local.id}`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: '#EB4628' }}
+              title="Download als Word document"
+            >
+              <Download size={12} />
+              .docx
+            </a>
             <button
               onClick={() => setConfirmDelete(true)}
               className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
