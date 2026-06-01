@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Trash2, Plus, X, MapPin, Users, FileText, History, Film, BookOpen, CheckCircle2, Globe, Sparkles, Download } from 'lucide-react'
+import { ArrowLeft, Trash2, Plus, X, MapPin, Users, FileText, History, Film, BookOpen, CheckCircle2, Globe, Sparkles, Download, GitCommit, AlertCircle } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
-import { Select } from '@ibizz/ui'
+import { Select, IbizzMark } from '@ibizz/ui'
 import type { VideoBrief, VideoBriefStatus, Brand, VideoCastRole, VideoLocation } from '@ibizz/supabase'
 import ScriptsView from './ScriptsView'
 import ScrapeBrandModal, { type ScrapeStats } from './ScrapeBrandModal'
 import ResearchView from './ResearchView'
+import VersionsView from './VersionsView'
 
 type Props = {
   brief: VideoBrief
@@ -37,6 +38,10 @@ export default function BriefDetail({ brief, brand, onBack, onUpdated, onDeleted
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [scrapeOpen, setScrapeOpen] = useState(false)
   const [scrapeStats, setScrapeStats] = useState<ScrapeStats | null>(null)
+  const [savingVersion, setSavingVersion] = useState(false)
+  const [versionFeedback, setVersionFeedback] = useState<string | null>(null)
+  const [versionError, setVersionError] = useState<string | null>(null)
+  const [versionsRefresh, setVersionsRefresh] = useState(0)
   const supabase = createClient()
 
   // Sync wanneer parent een geupdate brief stuurt (bv. na save elders)
@@ -61,6 +66,38 @@ export default function BriefDetail({ brief, brand, onBack, onUpdated, onDeleted
   async function deleteBrief() {
     await supabase.from('video_briefs').delete().eq('id', local.id)
     onDeleted(local.id)
+  }
+
+  async function saveVersion() {
+    setSavingVersion(true)
+    setVersionFeedback(null)
+    setVersionError(null)
+    try {
+      const res = await fetch('/api/save-version', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ briefId: local.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
+      const updated = data.brief as VideoBrief
+      const changes = data.changes as number
+      setLocal(updated)
+      onUpdated(updated)
+      setVersionsRefresh(k => k + 1)
+      const savedAs = updated.versie - 1
+      setVersionFeedback(
+        changes === 0
+          ? `v${savedAs} opgeslagen — geen wijzigingen gedetecteerd`
+          : `v${savedAs} opgeslagen met ${changes} ${changes === 1 ? 'wijziging' : 'wijzigingen'}`
+      )
+      setTimeout(() => setVersionFeedback(null), 4000)
+    } catch (e) {
+      setVersionError(e instanceof Error ? e.message : 'Save mislukt')
+      setTimeout(() => setVersionError(null), 6000)
+    } finally {
+      setSavingVersion(false)
+    }
   }
 
   function setCastTotaal(cast: VideoCastRole[]) { patch({ cast_totaal: cast }) }
@@ -98,6 +135,15 @@ export default function BriefDetail({ brief, brand, onBack, onUpdated, onDeleted
             <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
               v{local.versie}
             </span>
+            <button
+              onClick={saveVersion}
+              disabled={savingVersion}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 text-gray-700 hover:border-[#EB4628] hover:text-[#EB4628] transition-colors disabled:opacity-60"
+              title={`Snapshot van huidige staat opslaan als v${local.versie}`}
+            >
+              {savingVersion ? <IbizzMark size={11} animate className="text-[#EB4628]" /> : <GitCommit size={12} />}
+              {savingVersion ? 'Versie maken…' : 'Save versie'}
+            </button>
             <a
               href={`/api/export-brief-docx?briefId=${local.id}`}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-opacity"
@@ -136,6 +182,19 @@ export default function BriefDetail({ brief, brand, onBack, onUpdated, onDeleted
           placeholder="Dag-titel"
           className="w-full text-xl font-bold text-gray-900 outline-none focus:border-b focus:border-[#EB4628] pb-1"
         />
+
+        {versionFeedback && (
+          <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg px-2.5 py-1">
+            <CheckCircle2 size={12} />
+            {versionFeedback}
+          </div>
+        )}
+        {versionError && (
+          <div className="mt-2 inline-flex items-start gap-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5 max-w-2xl">
+            <AlertCircle size={12} className="flex-shrink-0 mt-0.5" />
+            <span>{versionError}</span>
+          </div>
+        )}
       </div>
 
       {/* Body */}
@@ -233,16 +292,13 @@ export default function BriefDetail({ brief, brand, onBack, onUpdated, onDeleted
           <ScriptsView briefId={local.id} />
         </Section>
 
-        {/* Wijzigingen / versies (placeholder voor Fase 5) */}
-        <Section title="Wijzigingen / Versies" icon={<History size={14} />}>
-          <div className="bg-white border border-gray-200 border-dashed rounded-2xl p-6 text-xs text-gray-500">
-            <p className="font-semibold text-gray-700 mb-1">Auto-changelog komt in Fase 5</p>
-            <p>
-              Elke keer als je een nieuwe versie opslaat, bumpt het versienummer en genereert
-              de AI automatisch een <span className="font-semibold">&ldquo;→ Script X: nieuwe vang-hook&rdquo;</span> changelog
-              van wat er feitelijk is veranderd t.o.v. de vorige versie.
-            </p>
-          </div>
+        {/* Versies + auto-changelog */}
+        <Section
+          title="Wijzigingen / Versies"
+          icon={<History size={14} />}
+          subtitle="Snapshots met AI-changelog per opgeslagen versie"
+        >
+          <VersionsView briefId={local.id} refreshKey={versionsRefresh} />
         </Section>
       </div>
 
