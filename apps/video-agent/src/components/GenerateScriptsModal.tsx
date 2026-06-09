@@ -39,8 +39,12 @@ export default function GenerateScriptsModal({ briefId, existingCount, onClose, 
         const data = await res.json().catch(() => ({}))
         throw new Error(data.error ?? `HTTP ${res.status}`)
       }
-      const data = await res.json() as { scripts: VideoScript[] }
+      const data = await res.json() as { scripts: VideoScript[]; warning?: string }
       onGenerated(data.scripts ?? [], mode)
+      if (data.warning) {
+        // korte alert — niet super UX-rijk maar je weet 't tenminste
+        alert(data.warning)
+      }
       onClose()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Generatie mislukt')

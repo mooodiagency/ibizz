@@ -4,13 +4,11 @@ import { useState } from 'react'
 import { TopBar } from '@ibizz/ui'
 import type { AppId } from '@ibizz/ui'
 import { useAuth } from '@/lib/auth'
-import { BrandProvider } from '@/lib/brand'
 import LoginPage from './LoginPage'
 import Sidebar from './Sidebar'
-import BeeldbankPage from './BeeldbankPage'
+import type { SidebarView } from './Sidebar'
 import GeneratorPage from './GeneratorPage'
-
-type View = 'beeldbank' | 'generator'
+import GalleryPage from './GalleryPage'
 
 const APP_URLS: Record<AppId, string> = {
   friday: process.env.NEXT_PUBLIC_FRIDAY_URL ?? 'http://localhost:3000',
@@ -24,7 +22,7 @@ const APP_URLS: Record<AppId, string> = {
 
 export default function Shell() {
   const { user, userName, loading, signOut } = useAuth()
-  const [view, setView] = useState<View>('beeldbank')
+  const [view, setView] = useState<SidebarView>('generator')
 
   if (loading) {
     return (
@@ -37,22 +35,20 @@ export default function Shell() {
   if (!user) return <LoginPage />
 
   return (
-    <BrandProvider>
-      <div className="flex flex-col h-screen overflow-hidden">
-        <TopBar
-          currentApp="brandstudio"
-          appUrls={APP_URLS}
-          userName={userName}
-          userColor="#EB4628"
-          onSignOut={signOut}
-        />
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar view={view} onSelect={setView} />
-          <main className="flex-1 overflow-hidden">
-            {view === 'beeldbank' ? <BeeldbankPage /> : <GeneratorPage />}
-          </main>
-        </div>
+    <div className="flex flex-col h-screen overflow-hidden">
+      <TopBar
+        currentApp="motion-agent"
+        appUrls={APP_URLS}
+        userName={userName}
+        userColor="#EB4628"
+        onSignOut={signOut}
+      />
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar view={view} onSelect={setView} />
+        <main className="flex-1 overflow-hidden">
+          {view === 'generator' ? <GeneratorPage /> : <GalleryPage />}
+        </main>
       </div>
-    </BrandProvider>
+    </div>
   )
 }

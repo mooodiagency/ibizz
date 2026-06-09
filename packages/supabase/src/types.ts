@@ -450,6 +450,33 @@ export type VideoBriefVersion = {
   created_by: string | null
 }
 
+// ─── Motion Agent (foto → video) ────────────────────────────────────────
+export type MotionModelId = 'veo-3.1' | 'veo-3.1-fast' | 'veo-3.1-lite' | 'kling' | 'seedance' | 'runway'
+export type MotionAspectRatio = '16:9' | '9:16'
+export type MotionResolution = '720p' | '1080p'
+export type MotionStatus = 'running' | 'succeeded' | 'failed'
+
+export type MotionGeneration = {
+  id: string
+  brand_id: string | null
+  user_id: string | null
+  user_name: string | null
+  prompt: string
+  model: MotionModelId
+  aspect_ratio: MotionAspectRatio
+  resolution: MotionResolution
+  duration_sec: number | null
+  source_image_url: string                  // bron-foto (public URL)
+  source_image_path: string                 // storage path bron-foto
+  status: MotionStatus
+  operation_name: string | null             // Veo long-running operation ref
+  result_url: string | null                 // resultaat-video public URL
+  result_storage_path: string | null
+  error: string | null
+  created_at: string
+  updated_at: string
+}
+
 export type GenerationStatus = 'draft' | 'approved' | 'rejected'
 
 export type Generation = {
@@ -1069,6 +1096,31 @@ export type Database = {
           created_at?: string
         }
         Update: Partial<Pick<Generation, 'prompt' | 'status' | 'result_url' | 'result_storage_path'>>
+        Relationships: []
+      }
+      motion_generations: {
+        Row: MotionGeneration
+        Insert: {
+          id?: string
+          brand_id?: string | null
+          user_id?: string | null
+          user_name?: string | null
+          prompt: string
+          model: MotionModelId
+          aspect_ratio: MotionAspectRatio
+          resolution: MotionResolution
+          duration_sec?: number | null
+          source_image_url: string
+          source_image_path: string
+          status?: MotionStatus
+          operation_name?: string | null
+          result_url?: string | null
+          result_storage_path?: string | null
+          error?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Omit<MotionGeneration, 'id' | 'created_at'>>
         Relationships: []
       }
     }

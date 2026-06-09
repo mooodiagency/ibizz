@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { LayoutGrid, Check, ExternalLink } from 'lucide-react'
 
-export type AppId = 'friday' | 'notulist' | 'brandstudio' | 'sea-agent' | 'seo-agent' | 'video-agent'
+export type AppId = 'friday' | 'notulist' | 'brandstudio' | 'sea-agent' | 'seo-agent' | 'video-agent' | 'motion-agent'
 
 type AppEntry = {
   id: AppId
@@ -55,6 +55,13 @@ const APPS: AppEntry[] = [
     description: 'Reels & TikTok shooting briefs',
     icon: '🎬',
     color: '#f43f5e',
+  },
+  {
+    id: 'motion-agent',
+    name: 'Motion',
+    description: 'Foto → video (AI animatie)',
+    icon: '🎞️',
+    color: '#06b6d4',
   },
 ]
 

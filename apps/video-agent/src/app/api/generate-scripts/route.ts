@@ -44,12 +44,68 @@ async function getSupabase() {
 
 function extractJson(text: string): string {
   let t = text.trim()
+  // Strip ```json fence
   const fence = t.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)
   if (fence) t = fence[1].trim()
+  // Trim alles voor de eerste { en na de laatste }
   const first = t.indexOf('{')
   const last = t.lastIndexOf('}')
   if (first !== -1 && last > first) t = t.slice(first, last + 1)
   return t
+}
+
+/**
+ * Maak JSON robuuster parsebaar — strip dingen die Claude soms toevoegt:
+ *  - Single-line `// comments`
+ *  - Trailing commas voor ] of }
+ *  - Smart quotes in waardes (vervangen door escaped versies)
+ */
+function cleanupJson(text: string): string {
+  let t = text
+  // Verwijder // comments (alleen op eigen regel of na een waarde, niet in strings)
+  // Best-effort: match // ... tot eind van regel, behalve in strings
+  t = t.replace(/^[ \t]*\/\/.*$/gm, '')
+  t = t.replace(/([}\]"\d])[ \t]+\/\/.*$/gm, '$1')
+  // Trailing commas voor } of ]
+  t = t.replace(/,(\s*[}\]])/g, '$1')
+  return t
+}
+
+/**
+ * Probeer een afgekapte JSON nog reddingsmatig te parsen door op de
+ * laatste complete script-entry te knippen.
+ */
+function tryRescueTruncated(raw: string): string | null {
+  // Vind het laatste compleet afgesloten script-object in de scripts array
+  // We zoeken naar het patroon "scripts": [ ... ] en knippen na het laatste }
+  const arrStart = raw.indexOf('"scripts"')
+  if (arrStart === -1) return null
+  const openBracket = raw.indexOf('[', arrStart)
+  if (openBracket === -1) return null
+
+  // Walk character-by-character om matching { } te tracken
+  let depth = 0
+  let inString = false
+  let escape = false
+  let lastCompleteEnd = -1
+
+  for (let i = openBracket; i < raw.length; i++) {
+    const c = raw[i]
+    if (escape) { escape = false; continue }
+    if (c === '\\') { escape = true; continue }
+    if (c === '"') { inString = !inString; continue }
+    if (inString) continue
+    if (c === '{') depth++
+    else if (c === '}') {
+      depth--
+      if (depth === 0) lastCompleteEnd = i
+    }
+  }
+
+  if (lastCompleteEnd === -1) return null
+
+  // Bouw schone JSON op: tot en met laatste complete } + sluit array + object
+  return raw.slice(0, lastCompleteEnd + 1) + ']}'
 }
 
 const VALID_TAGS: VideoShotTag[] = ['REAL', 'CGI', 'STOCK']
@@ -345,6 +401,10 @@ export async function POST(req: NextRequest) {
     const prompt = buildPrompt({ brandName, brief, research, aantal, lengteSec, creatieveRichting })
 
     // Claude aanroepen
+    const promptChars = prompt.length
+    const tokenEstimate = Math.round(promptChars / 3.5)
+    console.log(`[generate-scripts] prompt: ${promptChars} chars (~${tokenEstimate} tokens), ${aantal} scripts gevraagd`)
+
     const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -354,7 +414,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 16000,
+        max_tokens: 32000,                                     // bumpt van 16k → 32k voor langere multi-script outputs
         messages: [{ role: 'user', content: prompt }],
       }),
     })
@@ -362,24 +422,68 @@ export async function POST(req: NextRequest) {
     if (!aiRes.ok) {
       const errText = await aiRes.text()
       console.error('Anthropic error:', aiRes.status, errText.slice(0, 800))
-      return NextResponse.json({ error: `AI request mislukt (${aiRes.status})` }, { status: 500 })
+      let detail = errText.slice(0, 300)
+      try {
+        const errJson = JSON.parse(errText) as { error?: { type?: string; message?: string } }
+        if (errJson?.error?.message) detail = `${errJson.error.type ?? 'error'}: ${errJson.error.message}`
+      } catch { /* keep raw */ }
+      return NextResponse.json({ error: `AI request mislukt (${aiRes.status}): ${detail}` }, { status: 500 })
     }
 
-    const aiData = await aiRes.json()
+    const aiData = await aiRes.json() as { content?: { text?: string }[]; stop_reason?: string; usage?: { input_tokens?: number; output_tokens?: number } }
     const raw = (aiData.content?.[0]?.text ?? '') as string
+    const stopReason = aiData.stop_reason ?? null
+    const outputTokens = aiData.usage?.output_tokens ?? null
+    console.log(`[generate-scripts] stop_reason: ${stopReason}, output_tokens: ${outputTokens}, raw chars: ${raw.length}`)
+
     if (!raw) return NextResponse.json({ error: 'Lege AI response' }, { status: 500 })
 
-    // JSON parsen
-    let parsed: { scripts?: RawScript[] }
+    // JSON parsen — meerdere strategieën proberen
+    let parsed: { scripts?: RawScript[] } | null = null
+    let parseError: string | null = null
+
+    // 1. Probeer schoon
     try {
-      parsed = JSON.parse(extractJson(raw))
+      parsed = JSON.parse(cleanupJson(extractJson(raw)))
     } catch (e) {
-      console.error('JSON parse error:', e, raw.slice(0, 600))
-      return NextResponse.json({ error: 'AI output kon niet geparsed worden als JSON' }, { status: 500 })
+      parseError = e instanceof Error ? e.message : 'parse error'
+    }
+
+    // 2. Als 't truncated is (stop_reason=max_tokens), probeer reddingsmodus
+    if (!parsed && stopReason === 'max_tokens') {
+      const rescued = tryRescueTruncated(raw)
+      if (rescued) {
+        try {
+          const rescuedParsed = JSON.parse(cleanupJson(rescued)) as { scripts?: RawScript[] }
+          parsed = rescuedParsed
+          console.log(`[generate-scripts] rescued truncated JSON, ${rescuedParsed.scripts?.length ?? 0} scripts`)
+        } catch (e) {
+          console.error('Rescue parse failed:', e)
+        }
+      }
+    }
+
+    if (!parsed) {
+      console.error('JSON parse error:', parseError, 'first 400 chars:', raw.slice(0, 400), 'last 200 chars:', raw.slice(-200))
+      if (stopReason === 'max_tokens') {
+        return NextResponse.json({
+          error: `AI output werd afgekapt (${outputTokens ?? '?'} tokens). Probeer met minder scripts of kortere lengte, of laat de creatieve richting beknopter zijn.`,
+          debug: { stopReason, outputTokens },
+        }, { status: 500 })
+      }
+      return NextResponse.json({
+        error: `AI output kon niet geparsed worden als JSON: ${parseError ?? 'onbekende reden'}`,
+        debug: { stopReason, outputTokens, rawStart: raw.slice(0, 200), rawEnd: raw.slice(-200) },
+      }, { status: 500 })
     }
 
     if (!parsed.scripts || !Array.isArray(parsed.scripts) || parsed.scripts.length === 0) {
       return NextResponse.json({ error: 'AI gaf geen scripts terug' }, { status: 500 })
+    }
+
+    // Als 't truncated was maar we hebben gered: laat de gebruiker weten hoeveel we kregen
+    if (stopReason === 'max_tokens' && parsed.scripts.length < aantal) {
+      console.log(`[generate-scripts] gered ${parsed.scripts.length}/${aantal} scripts van truncated output`)
     }
 
     // Normaliseren naar VideoScript Insert shape
@@ -421,7 +525,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Opslaan mislukt: ${insertRes.error.message}` }, { status: 500 })
     }
 
-    return NextResponse.json({ scripts: insertRes.data as VideoScript[] })
+    const savedCount = insertRes.data?.length ?? 0
+    const warning = (stopReason === 'max_tokens' && savedCount < aantal)
+      ? `AI output werd afgekapt — ${savedCount} van ${aantal} scripts opgeslagen. Voor de rest: klik 'Meer scripts' en gebruik 'Toevoegen' modus.`
+      : undefined
+
+    return NextResponse.json({
+      scripts: insertRes.data as VideoScript[],
+      ...(warning ? { warning } : {}),
+    })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Unknown error'
     console.error('generate-scripts crash:', msg)
