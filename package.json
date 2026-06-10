@@ -6,7 +6,11 @@
     "apps/*",
     "packages/*"
   ],
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
   "scripts": {
+    "dev": "concurrently -n friday,notulist,brand,sea,seo,video,motion -c blue,magenta,cyan,green,yellow,red,white \"npm:dev:friday\" \"npm:dev:notulist\" \"npm:dev:brandstudio\" \"npm:dev:sea-agent\" \"npm:dev:seo-agent\" \"npm:dev:video-agent\" \"npm:dev:motion-agent\"",
     "dev:friday": "npm run dev -w @ibizz/friday",
     "dev:notulist": "npm run dev -w @ibizz/notulist",
     "dev:brandstudio": "npm run dev -w @ibizz/brandstudio",

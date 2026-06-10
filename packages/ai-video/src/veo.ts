@@ -36,7 +36,9 @@ export class VeoProvider implements VideoGenProvider {
       resolution: input.resolution,
     }
     if (input.durationSeconds && input.durationSeconds > 0) {
-      parameters.durationSeconds = Math.min(input.durationSeconds, 8)
+      // Veo accepteert alleen 4, 6 of 8 seconden — snap naar dichtstbijzijnde geldige waarde
+      const d = input.durationSeconds
+      parameters.durationSeconds = d <= 4 ? 4 : d <= 6 ? 6 : 8
     }
 
     // Veo predictLongRunning gebruikt het Vertex/Imagen-formaat (bytesBase64Encoded),

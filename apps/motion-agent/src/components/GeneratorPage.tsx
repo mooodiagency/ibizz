@@ -10,6 +10,8 @@ import { useAuth } from '@/lib/auth'
 
 const MAX_DIM = 1280   // client-side resize voor kleinere base64
 
+type FillStyle = 'white' | 'blur' | 'ai'
+
 export default function GeneratorPage() {
   const { user } = useAuth()
   const [brands, setBrands] = useState<Brand[]>([])
@@ -43,6 +45,7 @@ export default function GeneratorPage() {
   const [suggestions, setSuggestions] = useState<{ title: string; prompt: string }[]>([])
   const [analysis, setAnalysis] = useState<string | null>(null)
   const [productLock, setProductLock] = useState(true)
+  const [audioMode, setAudioMode] = useState<'music' | 'silent'>('music')
   const [suggestLoading, setSuggestLoading] = useState(false)
   const [suggestError, setSuggestError] = useState<string | null>(null)
 
@@ -150,47 +153,46 @@ export default function GeneratorPage() {
   const isFramed = extendedForAR === aspectRatio
   const needsFraming = !!originalBase64 && !arMatches && !isFramed
 
-  function planExpand(ow: number, oh: number, ar: MotionAspectRatio) {
-    const [cw, ch] = ar === '16:9' ? [1280, 720] : [720, 1280]
-    // Bewust ruimere marge: product gecentreerd met lucht eromheen, zodat een
-    // subtiele inzoom het product nooit aansnijdt en het volledig in beeld blijft.
-    const margin = 0.78
-    const scale = Math.min((cw * margin) / ow, (ch * margin) / oh)
-    const nw = Math.round(ow * scale)
-    const nh = Math.round(oh * scale)
-    const x = Math.round((cw - nw) / 2)
-    const y = Math.round((ch - nh) / 2)
-    return {
-      canvasSize: [cw, ch] as [number, number],
-      originalImageSize: [nw, nh] as [number, number],
-      originalImageLocation: [x, y] as [number, number],
-    }
-  }
-
-  async function runExtend(): Promise<{ base64: string; mime: string } | null> {
+  // style: 'white'/'blur' = gratis client-side; 'ai' = Gemini (vult de rand schermvullend)
+  async function runFill(style: FillStyle): Promise<{ base64: string; mime: string } | null> {
     if (!originalBase64 || !originalDims) return null
-    const plan = planExpand(originalDims.w, originalDims.h, aspectRatio)
     setExtending(true)
     setExtendError(null)
     try {
-      const res = await fetch('/api/extend-frame', {
+      // ── Gratis lokale fill (geen API) ──
+      if (style === 'white' || style === 'blur') {
+        if (!originalPreview) throw new Error('Geen bron-afbeelding')
+        const filled = await fillFrameLocal(originalPreview, aspectRatio, style)
+        setImageBase64(filled.base64)
+        setImageMime(filled.mime)
+        setImagePreview(filled.dataUrl)
+        setExtendedForAR(aspectRatio)
+        return { base64: filled.base64, mime: filled.mime }
+      }
+
+      // ── AI-scène via Gemini (gebruikt GEMINI_API_KEY, los van fal) ──
+      // Product eerst deterministisch gecentreerd op wit canvas, Gemini vult de rand
+      if (!originalPreview) throw new Error('Geen bron-afbeelding')
+      const composite = await fillFrameLocal(originalPreview, aspectRatio, 'white')
+      const res = await fetch('/api/extend-frame-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          imageBase64: originalBase64,
-          imageMimeType: originalMime,
-          canvasSize: plan.canvasSize,
-          originalImageSize: plan.originalImageSize,
-          originalImageLocation: plan.originalImageLocation,
+          imageBase64: composite.base64,
+          imageMimeType: composite.mime,
+          aspectRatio,
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Kader vullen mislukt')
-      setImageBase64(data.base64)
-      setImageMime(data.mimeType)
-      setImagePreview(data.url)
+      if (!res.ok) throw new Error(data.error ?? 'AI kader vullen mislukt')
+      const aiMime = data.mimeType ?? 'image/png'
+      // Normaliseer naar exact 9:16/16:9 — voorkomt zwarte rand bij Veo
+      const norm = await coverToCanvas(`data:${aiMime};base64,${data.base64}`, aspectRatio)
+      setImageBase64(norm.base64)
+      setImageMime(norm.mime)
+      setImagePreview(norm.dataUrl)
       setExtendedForAR(aspectRatio)
-      return { base64: data.base64, mime: data.mimeType }
+      return { base64: norm.base64, mime: norm.mime }
     } catch (e) {
       setExtendError(e instanceof Error ? e.message : 'Kader vullen mislukt')
       return null
@@ -251,11 +253,12 @@ export default function GeneratorPage() {
     setElapsed(0)
     elapsedTimer.current = setInterval(() => setElapsed(e => e + 1), 1000)
 
-    // Kader vullen indien het formaat niet matcht — voorkomt zwarte balken
+    // Kader vullen indien het formaat niet matcht — voorkomt zwarte balken.
+    // Auto = gratis witte fill (geen credits nodig).
     let imgB64 = imageBase64 ?? originalBase64
     let imgMime = imageMime
     if (needsFraming) {
-      const framed = await runExtend()
+      const framed = await runFill('white')
       if (!framed) {
         setGenerating(false)
         if (elapsedTimer.current) clearInterval(elapsedTimer.current)
@@ -266,9 +269,20 @@ export default function GeneratorPage() {
       imgMime = framed.mime
     }
 
+    // Veiligheidsnet: forceer exact 9:16/16:9 zodat Veo nooit een zwarte rand padt
+    try {
+      const exact = await coverToCanvas(`data:${imgMime};base64,${imgB64}`, aspectRatio)
+      imgB64 = exact.base64
+      imgMime = exact.mime
+    } catch { /* val terug op huidige image */ }
+
     // Product-lock clausule altijd meesturen zodat het model het product onaangetast laat
     const LOCK_CLAUSE = ' Belangrijk: het product, de verpakking, het etiket en alle tekst blijven exact identiek en volledig onveranderd. Niet vervormen, niet hertekenen, niet opnieuw genereren, geen tekst wijzigen. Beweging komt uitsluitend van de camera, de belichting en de omgeving — het product zelf blijft statisch en scherp in beeld. Het VOLLEDIGE product blijft te allen tijde compleet in beeld en gecentreerd; de camera snijdt het product nooit aan, zoomt nooit voorbij de randen van het product, en een deel van het product buiten beeld is niet toegestaan. Houd ruime marge rond het product zodat het altijd helemaal zichtbaar is.'
-    const finalPrompt = productLock ? `${prompt.trim()}${LOCK_CLAUSE}` : prompt.trim()
+    // Audio-regie: geen gesproken stem/tekst; muziek mag wel
+    const AUDIO_CLAUSE = audioMode === 'silent'
+      ? ' Audio: volledig stil. Geen geluid, geen muziek, geen stemmen, geen gesproken tekst.'
+      : ' Audio: ALLEEN subtiele, sfeervolle achtergrondmuziek die bij het merk past. ABSOLUUT GEEN voice-over, geen gesproken tekst, geen dialoog, geen narratie, geen stemmen, geen zang met woorden, geen uitgesproken tekst in beeld.'
+    const finalPrompt = (productLock ? `${prompt.trim()}${LOCK_CLAUSE}` : prompt.trim()) + AUDIO_CLAUSE
 
     try {
       const res = await fetch('/api/generate-video', {
@@ -454,6 +468,32 @@ export default function GeneratorPage() {
             </div>
           )}
 
+          {/* Audio */}
+          {originalBase64 && (
+            <Field label="Geluid">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setAudioMode('music')}
+                  className={`flex-1 rounded-xl border px-3 py-2 text-left transition-colors ${
+                    audioMode === 'music' ? 'border-[#EB4628] bg-orange-50' : 'border-gray-200 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  <div className={`text-xs font-semibold ${audioMode === 'music' ? 'text-[#EB4628]' : 'text-gray-700'}`}>Muziek</div>
+                  <div className="text-[10px] text-gray-500 mt-0.5">geen spraak/tekst</div>
+                </button>
+                <button
+                  onClick={() => setAudioMode('silent')}
+                  className={`flex-1 rounded-xl border px-3 py-2 text-left transition-colors ${
+                    audioMode === 'silent' ? 'border-[#EB4628] bg-orange-50' : 'border-gray-200 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  <div className={`text-xs font-semibold ${audioMode === 'silent' ? 'text-[#EB4628]' : 'text-gray-700'}`}>Stil</div>
+                  <div className="text-[10px] text-gray-500 mt-0.5">geen geluid</div>
+                </button>
+              </div>
+            </Field>
+          )}
+
           {/* Brand */}
           <Field label="Merk (optioneel)">
             <Select
@@ -485,34 +525,32 @@ export default function GeneratorPage() {
 
             {/* Kader vullen — voorkomt zwarte balken bij formaat-mismatch */}
             {originalBase64 && !arMatches && (
-              <div className="mt-2">
+              <div className="mt-2 space-y-1.5">
                 {isFramed ? (
-                  <div className="flex items-center gap-1.5 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5">
+                  <p className="flex items-center gap-1.5 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5">
                     <Maximize2 size={11} />
-                    Kader gevuld voor {aspectRatio} — geen zwarte balken.
-                    <button onClick={runExtend} disabled={extending} className="ml-auto font-semibold underline hover:no-underline disabled:opacity-50">
-                      opnieuw
-                    </button>
-                  </div>
+                    Kader gevuld voor {aspectRatio} — geen zwarte balken, product volledig zichtbaar.
+                  </p>
                 ) : (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2">
-                    <p className="flex items-start gap-1.5 text-[11px] text-amber-800 leading-snug mb-1.5">
-                      <AlertCircle size={11} className="flex-shrink-0 mt-0.5" />
-                      Je foto past niet op {aspectRatio}. Vul het kader zodat de AI de ruimte met een passende scène vult i.p.v. zwarte balken.
-                    </p>
-                    <button
-                      onClick={runExtend}
-                      disabled={extending}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-60"
-                      style={{ backgroundColor: '#EB4628' }}
-                    >
-                      {extending ? <IbizzMark size={10} animate /> : <Maximize2 size={10} />}
-                      {extending ? 'Kader vullen…' : `Kader vullen voor ${aspectRatio}`}
-                    </button>
-                    <p className="text-[10px] text-amber-700/70 mt-1">Gebeurt automatisch bij genereren als je 't overslaat.</p>
-                  </div>
+                  <p className="flex items-start gap-1.5 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2 leading-snug">
+                    <AlertCircle size={11} className="flex-shrink-0 mt-0.5" />
+                    Je foto past niet op {aspectRatio}. Vul het kader — product blijft volledig zichtbaar, geen zwarte balken. (Anders gebeurt 't automatisch bij genereren.)
+                  </p>
                 )}
-                {extendError && <p className="text-[11px] text-red-600 mt-1">{extendError}</p>}
+                <div className="flex gap-1.5">
+                  <FillBtn label="Wit" sub="gratis" onClick={() => runFill('white')} disabled={extending} />
+                  <FillBtn label="Blur" sub="gratis" onClick={() => runFill('blur')} disabled={extending} />
+                  <FillBtn label="AI-scène" sub="Gemini" onClick={() => runFill('ai')} disabled={extending} />
+                </div>
+                <p className="text-[10px] text-gray-400">
+                  AI-scène vult de rand schermvullend met een passende achtergrond (Gemini) — product blijft exact en volledig in beeld.
+                </p>
+                {extending && (
+                  <p className="text-[11px] text-gray-400 flex items-center gap-1.5">
+                    <IbizzMark size={10} animate className="text-[#EB4628]" /> Kader vullen…
+                  </p>
+                )}
+                {extendError && <p className="text-[11px] text-red-600">{extendError}</p>}
               </div>
             )}
           </Field>
@@ -532,11 +570,12 @@ export default function GeneratorPage() {
                 type="range"
                 min={4}
                 max={8}
-                step={1}
+                step={2}
                 value={durationSec}
                 onChange={e => setDurationSec(parseInt(e.target.value, 10))}
                 className="w-full accent-[#EB4628] mt-2"
               />
+              <p className="text-[10px] text-gray-400 mt-0.5">Veo: 4, 6 of 8 sec</p>
             </Field>
           </div>
 
@@ -650,6 +689,101 @@ function RatioBtn({ label, sub, active, onClick }: { label: string; sub: string;
       <div className="text-[10px] text-gray-500 mt-0.5">{sub}</div>
     </button>
   )
+}
+
+function FillBtn({ label, sub, onClick, disabled }: { label: string; sub: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="flex-1 rounded-lg border border-gray-200 hover:border-[#EB4628] hover:bg-orange-50/40 px-2 py-1.5 text-center transition-colors disabled:opacity-50"
+    >
+      <div className="text-[11px] font-semibold text-gray-700">{label}</div>
+      <div className="text-[9px] text-gray-400">{sub}</div>
+    </button>
+  )
+}
+
+/**
+ * Gratis client-side kader-vulling (geen API). Plaatst het product gecentreerd
+ * en volledig zichtbaar op een vol-formaat canvas; vult de rest met wit of een
+ * vervaagde versie van de foto. Geen zoom, product 100% intact.
+ */
+async function fillFrameLocal(
+  srcDataUrl: string,
+  ar: MotionAspectRatio,
+  style: 'white' | 'blur',
+): Promise<{ base64: string; mime: string; dataUrl: string }> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image()
+    img.onload = () => {
+      const [cw, ch] = ar === '16:9' ? [1280, 720] : [720, 1280]
+      const canvas = document.createElement('canvas')
+      canvas.width = cw
+      canvas.height = ch
+      const ctx = canvas.getContext('2d')
+      if (!ctx) { reject(new Error('canvas context')); return }
+
+      // Achtergrond
+      if (style === 'blur') {
+        const coverScale = Math.max(cw / img.width, ch / img.height)
+        const bw = img.width * coverScale
+        const bh = img.height * coverScale
+        ctx.filter = 'blur(28px) brightness(1.04)'
+        ctx.drawImage(img, (cw - bw) / 2, (ch - bh) / 2, bw, bh)
+        ctx.filter = 'none'
+      } else {
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, cw, ch)
+      }
+
+      // Product gecentreerd, volledig zichtbaar, met marge zodat inzoom niet afsnijdt
+      const margin = 0.8
+      const scale = Math.min((cw * margin) / img.width, (ch * margin) / img.height)
+      const pw = Math.round(img.width * scale)
+      const ph = Math.round(img.height * scale)
+      ctx.drawImage(img, Math.round((cw - pw) / 2), Math.round((ch - ph) / 2), pw, ph)
+
+      const mime = 'image/jpeg'
+      const dataUrl = canvas.toDataURL(mime, 0.92)
+      resolve({ base64: dataUrl.replace(/^data:[^;]+;base64,/, ''), mime, dataUrl })
+    }
+    img.onerror = () => reject(new Error('image load'))
+    img.src = srcDataUrl
+  })
+}
+
+/**
+ * Forceer een afbeelding naar EXACT de doel-dimensies (1280x720 / 720x1280)
+ * via cover-fit (vult het kader, snijdt overschot weg). Voorkomt zwarte randen
+ * doordat het video-model een net-niet-kloppende ratio anders zou padden.
+ */
+async function coverToCanvas(
+  srcDataUrl: string,
+  ar: MotionAspectRatio,
+): Promise<{ base64: string; mime: string; dataUrl: string }> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image()
+    img.onload = () => {
+      const [cw, ch] = ar === '16:9' ? [1280, 720] : [720, 1280]
+      const canvas = document.createElement('canvas')
+      canvas.width = cw
+      canvas.height = ch
+      const ctx = canvas.getContext('2d')
+      if (!ctx) { reject(new Error('canvas context')); return }
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, cw, ch)
+      const scale = Math.max(cw / img.width, ch / img.height) // COVER
+      const dw = img.width * scale
+      const dh = img.height * scale
+      ctx.drawImage(img, (cw - dw) / 2, (ch - dh) / 2, dw, dh)
+      const mime = 'image/jpeg'
+      const dataUrl = canvas.toDataURL(mime, 0.92)
+      resolve({ base64: dataUrl.replace(/^data:[^;]+;base64,/, ''), mime, dataUrl })
+    }
+    img.onerror = () => reject(new Error('image load'))
+    img.src = srcDataUrl
+  })
 }
 
 /** Resize een afbeelding client-side naar max dimensie, geeft base64 (zonder prefix) + dims terug. */
