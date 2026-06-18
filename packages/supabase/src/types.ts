@@ -456,6 +456,23 @@ export type MotionAspectRatio = '16:9' | '9:16'
 export type MotionResolution = '720p' | '1080p'
 export type MotionStatus = 'running' | 'succeeded' | 'failed'
 
+export type MotionTextOverlay = {
+  id: string
+  text: string
+  xPct: number
+  yPct: number
+  fontSizePct: number
+  color: string
+  fontFamily: string
+  weight: number
+  align: 'left' | 'center' | 'right'
+  uppercase: boolean
+  bg: string | null
+  shadow: boolean
+  startSec: number
+  endSec: number | null
+}
+
 export type MotionGeneration = {
   id: string
   brand_id: string | null
@@ -473,8 +490,83 @@ export type MotionGeneration = {
   result_url: string | null                 // resultaat-video public URL
   result_storage_path: string | null
   error: string | null
+  text_overlays: MotionTextOverlay[]         // non-destructieve tekst-lagen (editor)
   created_at: string
   updated_at: string
+}
+
+// ─── GEO Agent (AI-zichtbaarheid & citatie-intelligence) ────────────────
+export type GeoProjectStatus = 'active' | 'paused' | 'archived'
+export type GeoPromptIntent = 'informational' | 'commercial' | 'comparison' | 'transactional' | 'navigational'
+export type GeoPromptSource = 'ai' | 'reddit' | 'cbs' | 'news' | 'trends' | 'manual'
+export type GeoEngine = 'claude' | 'gemini' | 'openai' | 'perplexity'
+export type GeoRunStatus = 'running' | 'done' | 'failed'
+export type GeoSentiment = 'positive' | 'neutral' | 'negative'
+
+export type GeoProject = {
+  id: string
+  brand_id: string | null
+  name: string
+  market: string                              // bv "Netherlands"
+  website_url: string | null
+  brand_terms: string[]                       // namen/varianten waarop we 't merk herkennen
+  competitors: string[]
+  topics: string[]
+  status: GeoProjectStatus
+  created_by: string | null
+  created_by_name: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type GeoPrompt = {
+  id: string
+  project_id: string
+  text: string
+  intent: GeoPromptIntent
+  topic: string | null
+  persona: string | null
+  source: GeoPromptSource
+  active: boolean
+  created_at: string
+}
+
+export type GeoCitedSource = { domain: string; url: string | null; title: string | null }
+export type GeoCompetitorCount = { name: string; count: number }
+
+export type GeoRunSummary = {
+  totalPrompts: number
+  brandMentions: number
+  sov: number                                 // share of voice 0-100
+  sentiment: { positive: number; neutral: number; negative: number }
+  topCompetitors: GeoCompetitorCount[]
+  topSources: { domain: string; count: number }[]
+}
+
+export type GeoRun = {
+  id: string
+  project_id: string
+  engine: GeoEngine
+  status: GeoRunStatus
+  prompt_count: number
+  summary: GeoRunSummary | null
+  error: string | null
+  created_at: string
+  created_by: string | null
+}
+
+export type GeoResult = {
+  id: string
+  run_id: string
+  prompt_id: string
+  engine: GeoEngine
+  answer: string
+  brand_mentioned: boolean
+  brand_position: number | null               // 1 = eerst genoemd, etc.
+  competitors: string[]
+  cited_sources: GeoCitedSource[]
+  sentiment: GeoSentiment | null
+  created_at: string
 }
 
 export type GenerationStatus = 'draft' | 'approved' | 'rejected'
@@ -1117,10 +1209,81 @@ export type Database = {
           result_url?: string | null
           result_storage_path?: string | null
           error?: string | null
+          text_overlays?: MotionTextOverlay[]
           created_at?: string
           updated_at?: string
         }
         Update: Partial<Omit<MotionGeneration, 'id' | 'created_at'>>
+        Relationships: []
+      }
+      geo_projects: {
+        Row: GeoProject
+        Insert: {
+          id?: string
+          brand_id?: string | null
+          name: string
+          market?: string
+          website_url?: string | null
+          brand_terms?: string[]
+          competitors?: string[]
+          topics?: string[]
+          status?: GeoProjectStatus
+          created_by?: string | null
+          created_by_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Omit<GeoProject, 'id' | 'created_at'>>
+        Relationships: []
+      }
+      geo_prompts: {
+        Row: GeoPrompt
+        Insert: {
+          id?: string
+          project_id: string
+          text: string
+          intent?: GeoPromptIntent
+          topic?: string | null
+          persona?: string | null
+          source?: GeoPromptSource
+          active?: boolean
+          created_at?: string
+        }
+        Update: Partial<Omit<GeoPrompt, 'id' | 'project_id' | 'created_at'>>
+        Relationships: []
+      }
+      geo_runs: {
+        Row: GeoRun
+        Insert: {
+          id?: string
+          project_id: string
+          engine: GeoEngine
+          status?: GeoRunStatus
+          prompt_count?: number
+          summary?: GeoRunSummary | null
+          error?: string | null
+          created_at?: string
+          created_by?: string | null
+        }
+        Update: Partial<Omit<GeoRun, 'id' | 'project_id' | 'created_at'>>
+        Relationships: []
+      }
+      geo_results: {
+        Row: GeoResult
+        Insert: {
+          id?: string
+          run_id: string
+          prompt_id: string
+          engine: GeoEngine
+          answer: string
+          brand_mentioned?: boolean
+          brand_position?: number | null
+          competitors?: string[]
+          cited_sources?: GeoCitedSource[]
+          sentiment?: GeoSentiment | null
+          created_at?: string
+        }
+        Update: never
         Relationships: []
       }
     }

@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Loader2, Film, Download, Trash2, AlertCircle, RefreshCw, Clock } from 'lucide-react'
+import { Loader2, Film, Download, Trash2, AlertCircle, RefreshCw, Clock, Type } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
 import { Select } from '@ibizz/ui'
 import { format } from 'date-fns'
 import { nl } from 'date-fns/locale'
 import type { Brand, MotionGeneration } from '@ibizz/supabase'
+import VideoTextEditor from './VideoTextEditor'
 
 const STATUS_PILL: Record<string, string> = {
   running: 'bg-blue-100 text-blue-700',
@@ -25,6 +26,7 @@ export default function GalleryPage() {
   const [brands, setBrands] = useState<Brand[]>([])
   const [loading, setLoading] = useState(true)
   const [brandFilter, setBrandFilter] = useState('all')
+  const [editing, setEditing] = useState<MotionGeneration | null>(null)
   const supabase = createClient()
 
   const load = useCallback(() => {
@@ -158,14 +160,23 @@ export default function GalleryPage() {
                     <span className="text-[10px] text-gray-400">{format(new Date(item.created_at), 'd MMM HH:mm', { locale: nl })}</span>
                     <div className="flex items-center gap-1">
                       {item.status === 'succeeded' && item.result_url && (
-                        <a
-                          href={item.result_url}
-                          download
-                          className="p-1 rounded text-gray-400 hover:text-[#EB4628]"
-                          title="Download"
-                        >
-                          <Download size={13} />
-                        </a>
+                        <>
+                          <button
+                            onClick={() => setEditing(item)}
+                            className="p-1 rounded text-gray-400 hover:text-[#EB4628]"
+                            title="Tekst toevoegen"
+                          >
+                            <Type size={13} />
+                          </button>
+                          <a
+                            href={item.result_url}
+                            download
+                            className="p-1 rounded text-gray-400 hover:text-[#EB4628]"
+                            title="Download"
+                          >
+                            <Download size={13} />
+                          </a>
+                        </>
                       )}
                       <button
                         onClick={() => remove(item)}
@@ -182,6 +193,21 @@ export default function GalleryPage() {
           </div>
         )}
       </div>
+
+      {editing && editing.result_url && (
+        <VideoTextEditor
+          videoUrl={editing.result_url}
+          aspectRatio={editing.aspect_ratio}
+          durationSec={editing.duration_sec}
+          generationId={editing.id}
+          initialLayers={editing.text_overlays}
+          onClose={() => setEditing(null)}
+          onSaved={layers => {
+            setItems(prev => prev.map(i => i.id === editing.id ? { ...i, text_overlays: layers } : i))
+            setEditing(e => e ? { ...e, text_overlays: layers } : e)
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Upload, X, Wand2, AlertCircle, Download, RotateCcw, Image as ImageIcon, Clock, Sparkles, Lock, Maximize2 } from 'lucide-react'
+import { Upload, X, Wand2, AlertCircle, Download, RotateCcw, Image as ImageIcon, Clock, Sparkles, Lock, Maximize2, Type } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
 import { Select, IbizzMark } from '@ibizz/ui'
 import { VIDEO_MODELS } from '@ibizz/ai-video'
 import type { Brand, MotionGeneration, MotionModelId, MotionAspectRatio, MotionResolution } from '@ibizz/supabase'
 import { useAuth } from '@/lib/auth'
+import VideoTextEditor from './VideoTextEditor'
 
 const MAX_DIM = 1280   // client-side resize voor kleinere base64
 
@@ -39,6 +40,7 @@ export default function GeneratorPage() {
   const [elapsed, setElapsed] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
+  const [textEditing, setTextEditing] = useState(false)
 
   // AI-regie (vision → prompt suggesties)
   const [hint, setHint] = useState('')
@@ -642,12 +644,19 @@ export default function GeneratorPage() {
                 className="w-full h-auto"
               />
             </div>
-            <div className="flex items-center justify-center gap-2 mt-4">
+            <div className="flex items-center justify-center gap-2 mt-4 flex-wrap">
+              <button
+                onClick={() => setTextEditing(true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white hover:opacity-90"
+                style={{ backgroundColor: '#EB4628' }}
+              >
+                <Type size={14} />
+                Tekst toevoegen
+              </button>
               <a
                 href={active.result_url}
                 download
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white hover:opacity-90"
-                style={{ backgroundColor: '#EB4628' }}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:border-gray-300"
               >
                 <Download size={14} />
                 Download
@@ -663,6 +672,19 @@ export default function GeneratorPage() {
           </div>
         )}
       </div>
+
+      {/* Tekst-editor */}
+      {textEditing && active?.status === 'succeeded' && active.result_url && (
+        <VideoTextEditor
+          videoUrl={active.result_url}
+          aspectRatio={active.aspect_ratio}
+          durationSec={active.duration_sec}
+          generationId={active.id}
+          initialLayers={active.text_overlays}
+          onClose={() => setTextEditing(false)}
+          onSaved={layers => setActive(prev => prev ? { ...prev, text_overlays: layers } : prev)}
+        />
+      )}
     </div>
   )
 }
