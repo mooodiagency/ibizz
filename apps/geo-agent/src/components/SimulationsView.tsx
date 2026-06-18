@@ -9,6 +9,7 @@ import { IbizzMark } from '@ibizz/ui'
 import { format } from 'date-fns'
 import { nl } from 'date-fns/locale'
 import type { GeoProject, GeoRun, GeoResult, GeoPrompt } from '@ibizz/supabase'
+import RunTrend from './RunTrend'
 
 type Props = { project: GeoProject }
 
@@ -108,6 +109,9 @@ export default function SimulationsView({ project }: Props) {
         </div>
       ) : (
         <>
+          {/* Trend over tijd */}
+          <RunTrend runs={runs.filter(r => r.status === 'done' && r.summary).slice().reverse()} />
+
           {/* Run-selector */}
           <div className="flex gap-2 flex-wrap">
             {runs.map(r => (
