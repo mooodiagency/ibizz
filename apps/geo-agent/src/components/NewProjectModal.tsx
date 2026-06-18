@@ -151,7 +151,7 @@ function ChipInput({ values, onChange, placeholder }: { values: string[]; onChan
   return (
     <div className="border border-gray-200 rounded-xl px-3 py-2 flex flex-wrap gap-2 focus-within:border-[#EB4628]">
       {values.map((v, i) => (
-        <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-xs text-gray-700">
+        <span key={v} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-xs text-gray-700">
           {v}
           <button onClick={() => onChange(values.filter((_, j) => j !== i))} className="text-gray-400 hover:text-red-500"><X size={11} /></button>
         </span>

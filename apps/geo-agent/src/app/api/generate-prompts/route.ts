@@ -95,10 +95,12 @@ Belangrijk:
 - Noem het merk NIET in informational/commercial/comparison vragen (we willen testen of de AI het merk uit zichzelf noemt). Wel in navigational vragen.
 - Natuurlijke spreektaal, zoals iemand echt typt.
 
+Geef per vraag OOK het antwoord dat de persoon zoekt: "desired_answer" = beknopt (1-3 zinnen) wat voor antwoord deze persoon hoopt te krijgen, wat hem/haar zou tevredenstellen (welke info, welk type aanbeveling, welke toon).${personaName ? ' Stem dit af op de persona.' : ''}
+
 Geef ALLEEN geldige JSON terug:
 {
   "prompts": [
-    { "text": "de volledige vraag", "intent": "commercial", "topic": "kort topic-label" }
+    { "text": "de volledige vraag", "intent": "commercial", "topic": "kort topic-label", "desired_answer": "het antwoord dat ze zoeken" }
   ]
 }`
 
@@ -106,6 +108,7 @@ Geef ALLEEN geldige JSON terug:
       method: 'POST',
       headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({ model: MODEL, max_tokens: 8000, messages: [{ role: 'user', content: prompt }] }),
+      signal: AbortSignal.timeout(60000),
     })
     if (!aiRes.ok) {
       const t = await aiRes.text()
@@ -114,7 +117,7 @@ Geef ALLEEN geldige JSON terug:
     const aiData = await aiRes.json()
     const raw = (aiData.content?.[0]?.text ?? '') as string
 
-    let parsed: { prompts?: { text?: unknown; intent?: unknown; topic?: unknown }[] }
+    let parsed: { prompts?: { text?: unknown; intent?: unknown; topic?: unknown; desired_answer?: unknown }[] }
     try { parsed = JSON.parse(extractJson(raw)) } catch {
       return NextResponse.json({ error: 'AI-output niet parsebaar' }, { status: 500 })
     }
@@ -129,7 +132,8 @@ Geef ALLEEN geldige JSON terug:
         const intent = (typeof p.intent === 'string' && (VALID_INTENTS as string[]).includes(p.intent))
           ? p.intent as GeoPromptIntent : 'informational'
         const topic = typeof p.topic === 'string' && p.topic.trim() ? p.topic.trim() : null
-        return { project_id: body.projectId, text, intent, topic, persona: personaName, source: 'ai' as const, active: true }
+        const desired_answer = typeof p.desired_answer === 'string' && p.desired_answer.trim() ? p.desired_answer.trim() : null
+        return { project_id: body.projectId, text, intent, topic, desired_answer, persona: personaName, source: 'ai' as const, active: true }
       })
       .filter((x): x is NonNullable<typeof x> => x !== null)
 

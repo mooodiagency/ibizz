@@ -57,7 +57,7 @@ async function fromReddit(topics: string[]): Promise<Candidate[]> {
     try {
       const url = `https://www.reddit.com/search.json?q=${encodeURIComponent(topic)}&limit=25&sort=relevance&t=year&type=link`
       const res = await fetch(url, { headers: { 'User-Agent': UA, 'Accept': 'application/json' }, signal: AbortSignal.timeout(12000) })
-      if (!res.ok) continue
+      if (!res.ok) { console.warn(`[discover-prompts] Reddit "${topic}" → ${res.status} (mogelijk rate-limit)`); continue }
       const data = await res.json() as { data?: { children?: { data?: { title?: string; permalink?: string } }[] } }
       for (const c of data.data?.children ?? []) {
         const title = c.data?.title?.trim()
@@ -86,8 +86,10 @@ async function fromNews(apiKey: string, topics: string[], market: string): Promi
     if (res.ok) {
       const data = await res.json() as { articles?: { title?: string }[] }
       headlines = (data.articles ?? []).map(a => a.title?.trim()).filter((x): x is string => !!x).slice(0, 25)
+    } else {
+      console.warn(`[discover-prompts] GDELT → ${res.status}`)
     }
-  } catch { /* gdelt soms leeg */ }
+  } catch (e) { console.warn('[discover-prompts] GDELT fout:', e instanceof Error ? e.message : e) }
   if (headlines.length === 0) return []
 
   // 2. Claude distilleert headlines → natuurlijke gebruikersvragen
@@ -102,8 +104,9 @@ Geef ALLEEN JSON, max 12 vragen, in het ${market === 'Netherlands' ? 'Nederlands
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST', headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({ model: MODEL, max_tokens: 3000, messages: [{ role: 'user', content: prompt }] }),
+      signal: AbortSignal.timeout(45000),
     })
-    if (!res.ok) return []
+    if (!res.ok) { console.warn(`[discover-prompts] nieuws-distillatie mislukt (${res.status})`); return [] }
     const data = await res.json()
     const raw = (data.content?.[0]?.text ?? '') as string
     const parsed = JSON.parse(extractJson(raw)) as { questions?: { text?: string; intent?: string; topic?: string }[] }
@@ -143,6 +146,7 @@ export async function POST(req: NextRequest) {
 
     // Dedupe vs bestaande prompts
     const existing = await supabase.from('geo_prompts').select('text').eq('project_id', body.projectId)
+    if (existing.error) console.warn('[discover-prompts] dedup-query fout, mogelijk duplicaten:', existing.error.message)
     const existingSet = new Set((existing.data ?? []).map(p => (p.text as string).toLowerCase().trim()))
     const localSeen = new Set<string>()
     candidates = candidates.filter(c => {

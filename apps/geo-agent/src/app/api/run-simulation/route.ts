@@ -59,6 +59,7 @@ async function answerWithSearch(apiKey: string, question: string): Promise<{ ans
       messages: [{ role: 'user', content: question }],
       tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
     }),
+    signal: AbortSignal.timeout(90000),
   })
   if (!res.ok) {
     const t = await res.text()
@@ -82,14 +83,17 @@ async function answerWithSearch(apiKey: string, question: string): Promise<{ ans
   return { answer, sources }
 }
 
-async function analyze(apiKey: string, answer: string, brandTerms: string[], competitors: string[]): Promise<{
-  brand_mentioned: boolean; brand_position: number | null; competitors: string[]; sentiment: GeoSentiment | null
+async function analyze(apiKey: string, answer: string, brandTerms: string[], competitors: string[], desiredAnswer: string | null): Promise<{
+  brand_mentioned: boolean; brand_position: number | null; competitors: string[]; sentiment: GeoSentiment | null; answer_fit: number | null
 }> {
+  const fitBlock = desiredAnswer
+    ? `\nGEZOCHT ANTWOORD (wat de persoon hoopte te krijgen):\n"""${desiredAnswer.slice(0, 1500)}"""\n`
+    : ''
   const prompt = `Analyseer dit AI-antwoord voor merk-zichtbaarheid (GEO).
 
 MERK-TERMEN (zo herken je het merk): ${brandTerms.join(', ') || '(geen)'}
 BEKENDE CONCURRENTEN: ${competitors.join(', ') || '(geen)'}
-
+${fitBlock}
 ANTWOORD:
 """${answer.slice(0, 6000)}"""
 
@@ -98,30 +102,37 @@ Geef ALLEEN JSON:
   "brand_mentioned": true/false,          // wordt het merk (een van de merk-termen) genoemd?
   "brand_position": null of nummer,        // als 't antwoord meerdere merken/opties noemt: op welke positie staat het merk (1=eerst genoemd/aanbevolen)? anders null
   "competitors": ["..."],                  // welke concurrenten/andere merken worden genoemd (uit de lijst + nieuwe die je ziet)
-  "sentiment": "positive"|"neutral"|"negative"  // hoe wordt het merk beschreven; null als niet genoemd
+  "sentiment": "positive"|"neutral"|"negative",  // hoe wordt het merk beschreven; null als niet genoemd
+  "answer_fit": 0-100 of null              // hoe goed beantwoordt dit AI-antwoord wat de persoon zocht (gezocht antwoord)? null als geen gezocht antwoord opgegeven
 }`
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
     body: JSON.stringify({ model: MODEL, max_tokens: 1000, messages: [{ role: 'user', content: prompt }] }),
+    signal: AbortSignal.timeout(30000),
   })
-  if (!res.ok) return { brand_mentioned: false, brand_position: null, competitors: [], sentiment: null }
+  if (!res.ok) {
+    const t = await res.text()
+    throw new Error(`Claude analyze (${res.status}): ${t.slice(0, 120)}`)
+  }
   const data = await res.json()
   const raw = (data.content?.[0]?.text ?? '') as string
   try {
     const p = JSON.parse(extractJson(raw)) as {
-      brand_mentioned?: boolean; brand_position?: number | null; competitors?: unknown; sentiment?: string
+      brand_mentioned?: boolean; brand_position?: number | null; competitors?: unknown; sentiment?: string; answer_fit?: unknown
     }
     const sentiment = (['positive', 'neutral', 'negative'] as const).includes(p.sentiment as GeoSentiment)
       ? p.sentiment as GeoSentiment : null
+    const fit = typeof p.answer_fit === 'number' ? Math.max(0, Math.min(100, Math.round(p.answer_fit))) : null
     return {
       brand_mentioned: !!p.brand_mentioned,
       brand_position: typeof p.brand_position === 'number' ? p.brand_position : null,
       competitors: Array.isArray(p.competitors) ? p.competitors.filter((x): x is string => typeof x === 'string') : [],
       sentiment: p.brand_mentioned ? sentiment : null,
+      answer_fit: desiredAnswer ? fit : null,
     }
   } catch {
-    return { brand_mentioned: false, brand_position: null, competitors: [], sentiment: null }
+    return { brand_mentioned: false, brand_position: null, competitors: [], sentiment: null, answer_fit: null }
   }
 }
 
@@ -161,40 +172,51 @@ export async function POST(req: NextRequest) {
 
     // Prompts verwerken met concurrency-pool
     const results: GeoResult[] = []
-    const resultInserts: Database['public']['Tables']['geo_results']['Insert'][] = []
+    // ok=false → mislukte prompt (bv. API-fout); uitgesloten van de metrics zodat
+    // mislukkingen de Share of Voice / sentiment niet vervuilen.
+    type Outcome = { ok: boolean; insert: Database['public']['Tables']['geo_results']['Insert'] }
+    const outcomes: Outcome[] = []
     let idx = 0
     async function worker() {
       while (idx < prompts.length) {
         const p = prompts[idx++]
         try {
           const { answer, sources } = await answerWithSearch(apiKey!, p.text)
-          const a = await analyze(apiKey!, answer, brandTerms, project.competitors)
-          resultInserts.push({
+          const a = await analyze(apiKey!, answer, brandTerms, project.competitors, p.desired_answer)
+          outcomes.push({ ok: true, insert: {
             run_id: run.id, prompt_id: p.id, engine: 'claude', answer,
             brand_mentioned: a.brand_mentioned, brand_position: a.brand_position,
-            competitors: a.competitors, cited_sources: sources, sentiment: a.sentiment,
-          })
-        } catch {
-          resultInserts.push({
+            competitors: a.competitors, cited_sources: sources, sentiment: a.sentiment, answer_fit: a.answer_fit,
+          } })
+        } catch (e) {
+          console.error(`[run-simulation] prompt ${p.id} mislukt:`, e instanceof Error ? e.message : e)
+          outcomes.push({ ok: false, insert: {
             run_id: run.id, prompt_id: p.id, engine: 'claude', answer: '(fout bij ophalen)',
-            brand_mentioned: false, brand_position: null, competitors: [], cited_sources: [], sentiment: null,
-          })
+            brand_mentioned: false, brand_position: null, competitors: [], cited_sources: [], sentiment: null, answer_fit: null,
+          } })
         }
       }
     }
     await Promise.all(Array.from({ length: CONCURRENCY }, worker))
 
+    const resultInserts = outcomes.map(o => o.insert)
+    const okInserts = outcomes.filter(o => o.ok).map(o => o.insert)
+    const failedCount = outcomes.length - okInserts.length
+    if (failedCount > 0) console.warn(`[run-simulation] ${failedCount}/${outcomes.length} prompts mislukt (uitgesloten van metrics)`)
+
     const inserted = await supabase.from('geo_results').insert(resultInserts).select()
     if (!inserted.error && inserted.data) results.push(...(inserted.data as GeoResult[]))
 
-    // Summary berekenen
-    const total = resultInserts.length
-    const brandMentions = resultInserts.filter(r => r.brand_mentioned).length
+    // Summary berekenen — alleen over geslaagde prompts
+    const total = okInserts.length
+    const brandMentions = okInserts.filter(r => r.brand_mentioned).length
     const sentiment = { positive: 0, neutral: 0, negative: 0 }
     const compCount = new Map<string, number>()
     const srcCount = new Map<string, number>()
-    for (const r of resultInserts) {
+    const fits: number[] = []
+    for (const r of okInserts) {
       if (r.sentiment) sentiment[r.sentiment]++
+      if (typeof r.answer_fit === 'number') fits.push(r.answer_fit)
       for (const c of (r.competitors ?? [])) compCount.set(c, (compCount.get(c) ?? 0) + 1)
       for (const s of (r.cited_sources ?? [])) srcCount.set(s.domain, (srcCount.get(s.domain) ?? 0) + 1)
     }
@@ -202,6 +224,7 @@ export async function POST(req: NextRequest) {
       totalPrompts: total,
       brandMentions,
       sov: total > 0 ? Math.round((brandMentions / total) * 100) : 0,
+      avgAnswerFit: fits.length > 0 ? Math.round(fits.reduce((a, b) => a + b, 0) / fits.length) : null,
       sentiment,
       topCompetitors: [...compCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, count]) => ({ name, count })),
       topSources: [...srcCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([domain, count]) => ({ domain, count })),

@@ -36,7 +36,7 @@ export default function SimulationsView({ project }: Props) {
       if (!selectedId && rs.length) setSelectedId(rs[0].id)
       setLoading(false)
     })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [project.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { loadRuns() }, [loadRuns])
 
@@ -156,6 +156,18 @@ function Scorecard({ run }: { run: GeoRun }) {
         <div className="mt-3 h-2 rounded-full bg-gray-100 overflow-hidden">
           <div className="h-full rounded-full" style={{ width: `${s.sov}%`, backgroundColor: '#7c3aed' }} />
         </div>
+        {s.avgAnswerFit != null && (
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-500">Antwoord-fit</span>
+              <span className="font-bold" style={{ color: '#7c3aed' }}>{s.avgAnswerFit}%</span>
+            </div>
+            <p className="text-[10px] text-gray-400 mt-0.5">Matcht het AI-antwoord wat de doelgroep zoekt</p>
+            <div className="mt-1.5 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+              <div className="h-full rounded-full bg-violet-300" style={{ width: `${s.avgAnswerFit}%` }} />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Sentiment */}
@@ -225,11 +237,20 @@ function ResultRow({ result, prompt }: { result: GeoResult; prompt?: GeoPrompt }
         </span>
         <span className="flex-1 text-sm text-gray-800 truncate">{prompt?.text ?? '(vraag)'}</span>
         {result.brand_position != null && <span className="text-[10px] text-gray-400 flex-shrink-0">#{result.brand_position}</span>}
+        {result.answer_fit != null && <span className="text-[10px] font-semibold text-[#7c3aed] flex-shrink-0">fit {result.answer_fit}%</span>}
         {result.competitors.length > 0 && <span className="text-[10px] text-gray-400 flex-shrink-0">{result.competitors.length} concurr.</span>}
         {result.cited_sources.length > 0 && <span className="text-[10px] text-gray-400 flex-shrink-0">{result.cited_sources.length} bronnen</span>}
       </button>
       {open && (
         <div className="px-12 pb-3 space-y-2">
+          {prompt?.desired_answer && (
+            <div className="text-[11px] bg-violet-50/50 border border-violet-100 rounded-lg px-2.5 py-2">
+              <span className="font-semibold text-[#7c3aed]">Gezocht antwoord: </span>
+              <span className="text-gray-600">{prompt.desired_answer}</span>
+              {result.answer_fit != null && <span className="ml-1 text-[#7c3aed] font-semibold">· fit {result.answer_fit}%</span>}
+            </div>
+          )}
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Echt AI-antwoord</p>
           <p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed bg-gray-50 rounded-lg p-3 max-h-48 overflow-y-auto">{result.answer}</p>
           {result.competitors.length > 0 && (
             <div className="text-[11px] text-gray-500"><span className="font-semibold">Concurrenten:</span> {result.competitors.join(', ')}</div>

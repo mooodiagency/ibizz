@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Loader2, Sparkles, Plus, Trash2, MessageCircleQuestion, AlertCircle, Compass } from 'lucide-react'
+import { Loader2, Sparkles, Plus, Trash2, MessageCircleQuestion, AlertCircle, Compass, ChevronDown, ChevronRight, Target } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
 import { Select, IbizzMark } from '@ibizz/ui'
 import type { GeoProject, GeoPrompt, GeoPromptIntent } from '@ibizz/supabase'
@@ -129,19 +129,7 @@ export default function PromptsView({ project }: Props) {
       ) : (
         <div className="space-y-1.5">
           {filtered.map(p => (
-            <div key={p.id} className={`flex items-center gap-3 bg-white border rounded-xl px-3 py-2.5 ${p.active ? 'border-gray-200' : 'border-gray-100 opacity-50'}`}>
-              <input type="checkbox" checked={p.active} onChange={() => toggleActive(p)}
-                className="w-4 h-4 accent-[#EB4628] flex-shrink-0" title="Meenemen in simulatie" />
-              <span className={`flex-shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded ${INTENT_COLOR[p.intent]}`}>
-                {INTENT_LABEL[p.intent]}
-              </span>
-              <span className="flex-1 text-sm text-gray-800">{p.text}</span>
-              {p.topic && <span className="text-[10px] text-gray-400 flex-shrink-0">{p.topic}</span>}
-              {p.source !== 'ai' && p.source !== 'manual' && (
-                <span className="text-[9px] uppercase text-gray-400 flex-shrink-0">{p.source}</span>
-              )}
-              <button onClick={() => remove(p.id)} className="p-1 rounded text-gray-300 hover:text-red-500 flex-shrink-0"><Trash2 size={12} /></button>
-            </div>
+            <PromptRow key={p.id} p={p} onToggle={() => toggleActive(p)} onRemove={() => remove(p.id)} />
           ))}
         </div>
       )}
@@ -152,6 +140,37 @@ export default function PromptsView({ project }: Props) {
           onClose={() => setDiscovering(false)}
           onAdded={added => setPrompts(prev => [...prev, ...added])}
         />
+      )}
+    </div>
+  )
+}
+
+function PromptRow({ p, onToggle, onRemove }: { p: GeoPrompt; onToggle: () => void; onRemove: () => void }) {
+  const [open, setOpen] = useState(false)
+  const hasAnswer = !!p.desired_answer
+  return (
+    <div className={`bg-white border rounded-xl ${p.active ? 'border-gray-200' : 'border-gray-100 opacity-50'}`}>
+      <div className="flex items-center gap-3 px-3 py-2.5">
+        <input type="checkbox" checked={p.active} onChange={onToggle} className="w-4 h-4 accent-[#EB4628] flex-shrink-0" title="Meenemen in simulatie" />
+        <span className={`flex-shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded ${INTENT_COLOR[p.intent]}`}>{INTENT_LABEL[p.intent]}</span>
+        <span className="flex-1 text-sm text-gray-800">{p.text}</span>
+        {p.persona && <span className="text-[10px] text-[#7c3aed] bg-violet-50 rounded px-1.5 py-0.5 flex-shrink-0">{p.persona}</span>}
+        {p.topic && <span className="text-[10px] text-gray-400 flex-shrink-0">{p.topic}</span>}
+        {p.source !== 'ai' && p.source !== 'manual' && <span className="text-[9px] uppercase text-gray-400 flex-shrink-0">{p.source}</span>}
+        {hasAnswer && (
+          <button onClick={() => setOpen(o => !o)} className="p-1 rounded text-gray-400 hover:text-[#7c3aed] flex-shrink-0" title="Gezocht antwoord">
+            {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+          </button>
+        )}
+        <button onClick={onRemove} className="p-1 rounded text-gray-300 hover:text-red-500 flex-shrink-0"><Trash2 size={12} /></button>
+      </div>
+      {open && hasAnswer && (
+        <div className="px-3 pb-2.5 pl-10">
+          <div className="flex items-start gap-1.5 text-xs bg-violet-50/50 border border-violet-100 rounded-lg px-2.5 py-2">
+            <Target size={12} className="text-[#7c3aed] flex-shrink-0 mt-0.5" />
+            <div><span className="font-semibold text-[#7c3aed]">Gezocht antwoord: </span><span className="text-gray-700">{p.desired_answer}</span></div>
+          </div>
+        </div>
       )}
     </div>
   )

@@ -29,6 +29,7 @@ create table geo_prompts (
     check (intent in ('informational', 'commercial', 'comparison', 'transactional', 'navigational')),
   topic text,
   persona text,
+  desired_answer text,                             -- het antwoord dat de persona zoekt
   source text not null default 'ai'
     check (source in ('ai', 'reddit', 'cbs', 'news', 'trends', 'manual')),
   active boolean not null default true,
@@ -75,6 +76,7 @@ create table geo_results (
   competitors text[] not null default '{}',
   cited_sources jsonb not null default '[]'::jsonb,  -- [{domain, url, title}]
   sentiment text check (sentiment in ('positive', 'neutral', 'negative')),
+  answer_fit int,                                    -- 0-100: matcht 't AI-antwoord wat de persona zocht
   created_at timestamptz default now()
 );
 

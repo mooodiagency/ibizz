@@ -526,6 +526,7 @@ export type GeoPrompt = {
   intent: GeoPromptIntent
   topic: string | null
   persona: string | null
+  desired_answer: string | null               // het antwoord dat de persona zoekt (ideaal antwoord)
   source: GeoPromptSource
   active: boolean
   created_at: string
@@ -561,6 +562,7 @@ export type GeoRunSummary = {
   totalPrompts: number
   brandMentions: number
   sov: number                                 // share of voice 0-100
+  avgAnswerFit: number | null                 // gemiddelde 0-100: matcht AI-antwoord wat de persona zoekt
   sentiment: { positive: number; neutral: number; negative: number }
   topCompetitors: GeoCompetitorCount[]
   topSources: { domain: string; count: number }[]
@@ -589,6 +591,7 @@ export type GeoResult = {
   competitors: string[]
   cited_sources: GeoCitedSource[]
   sentiment: GeoSentiment | null
+  answer_fit: number | null                   // 0-100: matcht 't AI-antwoord wat de persona zocht
   created_at: string
 }
 
@@ -1268,6 +1271,7 @@ export type Database = {
           intent?: GeoPromptIntent
           topic?: string | null
           persona?: string | null
+          desired_answer?: string | null
           source?: GeoPromptSource
           active?: boolean
           created_at?: string
@@ -1322,6 +1326,7 @@ export type Database = {
           competitors?: string[]
           cited_sources?: GeoCitedSource[]
           sentiment?: GeoSentiment | null
+          answer_fit?: number | null
           created_at?: string
         }
         Update: never

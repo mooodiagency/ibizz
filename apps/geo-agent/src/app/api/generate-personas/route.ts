@@ -39,10 +39,10 @@ async function fetchCbsFigures(): Promise<Record<string, unknown> | null> {
   try {
     const url = 'https://opendata.cbs.nl/ODataApi/odata/37296ned/TypedDataSet?$orderby=Perioden%20desc&$top=1'
     const res = await fetch(url, { headers: { 'Accept': 'application/json' }, signal: AbortSignal.timeout(9000) })
-    if (!res.ok) return null
+    if (!res.ok) { console.warn(`[generate-personas] CBS niet bereikbaar (${res.status})`); return null }
     const data = await res.json() as { value?: Record<string, unknown>[] }
     return data.value?.[0] ?? null
-  } catch { return null }
+  } catch (e) { console.warn('[generate-personas] CBS fetch fout:', e instanceof Error ? e.message : e); return null }
 }
 
 export async function POST(req: NextRequest) {
@@ -103,6 +103,7 @@ share = ruw % van de doelgroep (samen ~100). Nederlands.`
     const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST', headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({ model: MODEL, max_tokens: 4000, messages: [{ role: 'user', content: prompt }] }),
+      signal: AbortSignal.timeout(60000),
     })
     if (!aiRes.ok) {
       const t = await aiRes.text()
