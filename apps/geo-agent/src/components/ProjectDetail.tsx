@@ -6,6 +6,7 @@ import { createClient } from '@ibizz/supabase'
 import { Select } from '@ibizz/ui'
 import type { GeoProject, GeoProjectStatus, Brand } from '@ibizz/supabase'
 import PromptsView from './PromptsView'
+import SimulationsView from './SimulationsView'
 
 type Props = {
   project: GeoProject
@@ -79,21 +80,7 @@ export default function ProjectDetail({ project, brand, onBack, onUpdated, onDel
       {/* Body */}
       <div className="flex-1 overflow-y-auto">
         {tab === 'prompts' && <PromptsView project={project} />}
-        {tab === 'simulations' && (
-          <div className="px-8 py-10 max-w-2xl">
-            <div className="bg-white border border-gray-200 border-dashed rounded-2xl p-8 text-center">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-50 to-purple-50 flex items-center justify-center mx-auto mb-3">
-                <Radar size={20} className="text-[#7c3aed]" />
-              </div>
-              <p className="text-sm font-semibold text-gray-800 mb-1">Simulaties komen in de volgende stap</p>
-              <p className="text-xs text-gray-500 leading-relaxed max-w-md mx-auto">
-                Hier draaien we straks de vragen écht tegen Claude (+ later Gemini/GPT/Perplexity): word je merk genoemd?
-                op welke positie? welke concurrenten en bronnen worden geciteerd? Met een scorecard (Share of Voice,
-                citatie-bronnen, sentiment) en tracking over tijd. Vul eerst je vragen-set onder &ldquo;Vragen&rdquo;.
-              </p>
-            </div>
-          </div>
-        )}
+        {tab === 'simulations' && <SimulationsView project={project} />}
         {tab === 'settings' && (
           <div className="px-8 py-6 max-w-2xl space-y-4">
             <SettingsBlock label="Merk-termen" values={project.brand_terms}
