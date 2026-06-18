@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Loader2, Sparkles, Plus, Trash2, MessageCircleQuestion, AlertCircle } from 'lucide-react'
+import { Loader2, Sparkles, Plus, Trash2, MessageCircleQuestion, AlertCircle, Compass } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
 import { Select, IbizzMark } from '@ibizz/ui'
 import type { GeoProject, GeoPrompt, GeoPromptIntent } from '@ibizz/supabase'
+import DiscoverPromptsModal from './DiscoverPromptsModal'
 
 type Props = { project: GeoProject }
 
@@ -28,6 +29,7 @@ export default function PromptsView({ project }: Props) {
   const [filter, setFilter] = useState<string>('all')
   const [newText, setNewText] = useState('')
   const [newIntent, setNewIntent] = useState<GeoPromptIntent>('commercial')
+  const [discovering, setDiscovering] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -81,12 +83,18 @@ export default function PromptsView({ project }: Props) {
             options={[{ value: 'all', label: `Alle (${prompts.length})` }, ...INTENTS.map(i => ({ value: i, label: INTENT_LABEL[i] }))]} />
           <span className="text-xs text-gray-400">{activeCount} actief voor simulatie</span>
         </div>
-        <button onClick={generate} disabled={generating}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
-          style={{ backgroundColor: '#EB4628' }}>
-          {generating ? <IbizzMark size={14} animate /> : <Sparkles size={14} />}
-          {generating ? 'AI bedenkt vragen…' : prompts.length ? 'Meer vragen' : 'Genereer vragen'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setDiscovering(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold border border-gray-200 text-gray-700 hover:border-[#7c3aed] hover:text-[#7c3aed]">
+            <Compass size={14} /> Ontdek vragen
+          </button>
+          <button onClick={generate} disabled={generating}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
+            style={{ backgroundColor: '#EB4628' }}>
+            {generating ? <IbizzMark size={14} animate /> : <Sparkles size={14} />}
+            {generating ? 'AI bedenkt vragen…' : prompts.length ? 'Meer (AI)' : 'Genereer vragen'}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -136,6 +144,14 @@ export default function PromptsView({ project }: Props) {
             </div>
           ))}
         </div>
+      )}
+
+      {discovering && (
+        <DiscoverPromptsModal
+          projectId={project.id}
+          onClose={() => setDiscovering(false)}
+          onAdded={added => setPrompts(prev => [...prev, ...added])}
+        />
       )}
     </div>
   )
