@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Niet ingelogd' }, { status: 401 })
 
-    const body = await req.json() as { projectId: string; count?: number }
+    const body = await req.json() as { projectId: string; count?: number; personaId?: string }
     if (!body.projectId) return NextResponse.json({ error: 'projectId verplicht' }, { status: 400 })
     const count = Math.max(5, Math.min(40, body.count ?? 24))
 
@@ -60,6 +60,18 @@ export async function POST(req: NextRequest) {
       if (b.data?.name) brandName = b.data.name
     }
 
+    // Optioneel: persona-framing
+    let personaName: string | null = null
+    let personaBlock = ''
+    if (body.personaId) {
+      const persRes = await supabase.from('geo_personas').select('*').eq('id', body.personaId).single()
+      if (persRes.data) {
+        const p = persRes.data
+        personaName = p.name
+        personaBlock = `\n# PERSONA (formuleer de vragen ZOALS deze persona ze aan een AI zou stellen)\nNaam: ${p.name}\n${p.segment ? `Segment: ${p.segment}\n` : ''}${p.situation ? `Situatie: ${p.situation}\n` : ''}${p.demographics ? `Demografie: ${JSON.stringify(p.demographics)}\n` : ''}${p.motivations?.length ? `Motivaties: ${p.motivations.join(', ')}\n` : ''}${p.how_they_ask ? `Vraagstijl: ${p.how_they_ask}\n` : ''}`
+      }
+    }
+
     const prompt = `Je bent een GEO-strateeg (Generative Engine Optimization). Je brengt in kaart welke vragen echte mensen aan AI-assistenten (ChatGPT, Claude, Gemini, Perplexity) stellen rondom een merk en zijn categorie. Dit zijn de prompts waarmee we straks testen of het merk in AI-antwoorden genoemd/geciteerd wordt.
 
 # CONTEXT
@@ -68,7 +80,7 @@ Markt: ${project.market}
 ${project.website_url ? `Website: ${project.website_url}` : ''}
 Topics/categorieën: ${project.topics.length ? project.topics.join(', ') : '(leid zelf af uit het merk)'}
 Concurrenten: ${project.competitors.length ? project.competitors.join(', ') : '(onbekend)'}
-
+${personaBlock}
 # OPDRACHT
 Genereer ${count} realistische vragen/prompts zoals echte mensen ze aan een AI-assistent typen — NIET zoals zoekwoorden, maar volledige natuurlijke vragen. Spreid over intenties:
 - informational: "hoe/wat/waarom" vragen over de categorie
@@ -117,7 +129,7 @@ Geef ALLEEN geldige JSON terug:
         const intent = (typeof p.intent === 'string' && (VALID_INTENTS as string[]).includes(p.intent))
           ? p.intent as GeoPromptIntent : 'informational'
         const topic = typeof p.topic === 'string' && p.topic.trim() ? p.topic.trim() : null
-        return { project_id: body.projectId, text, intent, topic, source: 'ai' as const, active: true }
+        return { project_id: body.projectId, text, intent, topic, persona: personaName, source: 'ai' as const, active: true }
       })
       .filter((x): x is NonNullable<typeof x> => x !== null)
 

@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeft, Trash2, MessageCircleQuestion, Radar, Settings } from 'lucide-react'
+import { ArrowLeft, Trash2, MessageCircleQuestion, Radar, Settings, Users } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
 import { Select } from '@ibizz/ui'
 import type { GeoProject, GeoProjectStatus, Brand } from '@ibizz/supabase'
 import PromptsView from './PromptsView'
 import SimulationsView from './SimulationsView'
+import PersonasView from './PersonasView'
 
 type Props = {
   project: GeoProject
@@ -16,7 +17,7 @@ type Props = {
   onDeleted: (id: string) => void
 }
 
-type Tab = 'prompts' | 'simulations' | 'settings'
+type Tab = 'prompts' | 'personas' | 'simulations' | 'settings'
 
 const STATUS_PILL: Record<GeoProjectStatus, string> = {
   active: 'bg-green-100 text-green-700',
@@ -72,6 +73,7 @@ export default function ProjectDetail({ project, brand, onBack, onUpdated, onDel
         {/* Tabs */}
         <div className="flex gap-1 mt-3 -mb-px">
           <TabBtn icon={<MessageCircleQuestion size={13} />} label="Vragen" active={tab === 'prompts'} onClick={() => setTab('prompts')} />
+          <TabBtn icon={<Users size={13} />} label="Persona's" active={tab === 'personas'} onClick={() => setTab('personas')} />
           <TabBtn icon={<Radar size={13} />} label="Simulaties" active={tab === 'simulations'} onClick={() => setTab('simulations')} />
           <TabBtn icon={<Settings size={13} />} label="Instellingen" active={tab === 'settings'} onClick={() => setTab('settings')} />
         </div>
@@ -80,6 +82,7 @@ export default function ProjectDetail({ project, brand, onBack, onUpdated, onDel
       {/* Body */}
       <div className="flex-1 overflow-y-auto">
         {tab === 'prompts' && <PromptsView project={project} />}
+        {tab === 'personas' && <PersonasView project={project} />}
         {tab === 'simulations' && <SimulationsView project={project} />}
         {tab === 'settings' && (
           <div className="px-8 py-6 max-w-2xl space-y-4">

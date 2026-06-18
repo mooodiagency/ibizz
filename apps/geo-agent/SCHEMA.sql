@@ -35,6 +35,21 @@ create table geo_prompts (
   created_at timestamptz default now()
 );
 
+-- Persona's = CBS-gegronde doelgroep-segmenten
+create table geo_personas (
+  id uuid primary key default uuid_generate_v4(),
+  project_id uuid references geo_projects(id) on delete cascade not null,
+  name text not null,
+  segment text,
+  demographics jsonb,
+  situation text,
+  motivations text[] not null default '{}',
+  how_they_ask text,
+  share int,
+  source text not null default 'ai' check (source in ('cbs', 'ai')),
+  created_at timestamptz default now()
+);
+
 -- Runs = een simulatie op een moment (alle actieve prompts tegen een engine)
 create table geo_runs (
   id uuid primary key default uuid_generate_v4(),
@@ -66,14 +81,17 @@ create table geo_results (
 -- RLS — alle authenticated users
 alter table geo_projects enable row level security;
 alter table geo_prompts  enable row level security;
+alter table geo_personas enable row level security;
 alter table geo_runs     enable row level security;
 alter table geo_results  enable row level security;
 
 create policy "geo_projects auth" on geo_projects for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 create policy "geo_prompts auth"  on geo_prompts  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "geo_personas auth" on geo_personas for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 create policy "geo_runs auth"     on geo_runs     for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 create policy "geo_results auth"  on geo_results  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
+create index geo_personas_project_idx on geo_personas(project_id);
 create index geo_prompts_project_idx on geo_prompts(project_id);
 create index geo_runs_project_idx    on geo_runs(project_id);
 create index geo_results_run_idx     on geo_results(run_id);

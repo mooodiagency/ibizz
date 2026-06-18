@@ -531,6 +531,29 @@ export type GeoPrompt = {
   created_at: string
 }
 
+export type GeoPersonaDemographics = {
+  age_range: string | null
+  region: string | null
+  income: string | null
+  household: string | null
+  education: string | null
+  occupation: string | null
+}
+
+export type GeoPersona = {
+  id: string
+  project_id: string
+  name: string
+  segment: string | null                      // korte segment-omschrijving
+  demographics: GeoPersonaDemographics | null
+  situation: string | null                    // context/leefsituatie
+  motivations: string[]
+  how_they_ask: string | null                 // hoe deze persona vragen formuleert aan AI
+  share: number | null                        // ruwe % van de doelgroep
+  source: 'cbs' | 'ai'
+  created_at: string
+}
+
 export type GeoCitedSource = { domain: string; url: string | null; title: string | null }
 export type GeoCompetitorCount = { name: string; count: number }
 
@@ -1250,6 +1273,24 @@ export type Database = {
           created_at?: string
         }
         Update: Partial<Omit<GeoPrompt, 'id' | 'project_id' | 'created_at'>>
+        Relationships: []
+      }
+      geo_personas: {
+        Row: GeoPersona
+        Insert: {
+          id?: string
+          project_id: string
+          name: string
+          segment?: string | null
+          demographics?: GeoPersonaDemographics | null
+          situation?: string | null
+          motivations?: string[]
+          how_they_ask?: string | null
+          share?: number | null
+          source?: 'cbs' | 'ai'
+          created_at?: string
+        }
+        Update: Partial<Omit<GeoPersona, 'id' | 'project_id' | 'created_at'>>
         Relationships: []
       }
       geo_runs: {
