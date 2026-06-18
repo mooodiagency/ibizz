@@ -20,6 +20,7 @@ const APP_URLS: Record<AppId, string> = {
   'seo-agent': process.env.NEXT_PUBLIC_SEO_AGENT_URL ?? 'http://localhost:3005',
   'video-agent': process.env.NEXT_PUBLIC_VIDEO_AGENT_URL ?? 'http://localhost:3006',
   'motion-agent': process.env.NEXT_PUBLIC_MOTION_AGENT_URL ?? 'http://localhost:3007',
+  'geo-agent': process.env.NEXT_PUBLIC_GEO_AGENT_URL ?? 'http://localhost:3008',
 }
 
 export default function TopBar() {

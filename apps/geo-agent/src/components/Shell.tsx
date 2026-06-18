@@ -7,8 +7,7 @@ import { useAuth } from '@/lib/auth'
 import LoginPage from './LoginPage'
 import Sidebar from './Sidebar'
 import type { SidebarView } from './Sidebar'
-import GeneratorPage from './GeneratorPage'
-import GalleryPage from './GalleryPage'
+import ProjectsPage from './ProjectsPage'
 
 const APP_URLS: Record<AppId, string> = {
   friday: process.env.NEXT_PUBLIC_FRIDAY_URL ?? 'http://localhost:3000',
@@ -23,7 +22,7 @@ const APP_URLS: Record<AppId, string> = {
 
 export default function Shell() {
   const { user, userName, loading, signOut } = useAuth()
-  const [view, setView] = useState<SidebarView>('generator')
+  const [view, setView] = useState<SidebarView>('projects')
 
   if (loading) {
     return (
@@ -32,22 +31,15 @@ export default function Shell() {
       </div>
     )
   }
-
   if (!user) return <LoginPage />
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      <TopBar
-        currentApp="motion-agent"
-        appUrls={APP_URLS}
-        userName={userName}
-        userColor="#EB4628"
-        onSignOut={signOut}
-      />
+      <TopBar currentApp="geo-agent" appUrls={APP_URLS} userName={userName} userColor="#EB4628" onSignOut={signOut} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar view={view} onSelect={setView} />
         <main className="flex-1 overflow-hidden">
-          {view === 'generator' ? <GeneratorPage /> : <GalleryPage />}
+          <ProjectsPage />
         </main>
       </div>
     </div>

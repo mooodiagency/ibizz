@@ -10,7 +10,7 @@
     "concurrently": "^9.1.0"
   },
   "scripts": {
-    "dev": "concurrently -n friday,notulist,brand,sea,seo,video,motion -c blue,magenta,cyan,green,yellow,red,white \"npm:dev:friday\" \"npm:dev:notulist\" \"npm:dev:brandstudio\" \"npm:dev:sea-agent\" \"npm:dev:seo-agent\" \"npm:dev:video-agent\" \"npm:dev:motion-agent\"",
+    "dev": "concurrently -n friday,notulist,brand,sea,seo,video,motion,geo -c blue,magenta,cyan,green,yellow,red,white,gray \"npm:dev:friday\" \"npm:dev:notulist\" \"npm:dev:brandstudio\" \"npm:dev:sea-agent\" \"npm:dev:seo-agent\" \"npm:dev:video-agent\" \"npm:dev:motion-agent\" \"npm:dev:geo-agent\"",
     "dev:friday": "npm run dev -w @ibizz/friday",
     "dev:notulist": "npm run dev -w @ibizz/notulist",
     "dev:brandstudio": "npm run dev -w @ibizz/brandstudio",
@@ -18,12 +18,14 @@
     "dev:seo-agent": "npm run dev -w @ibizz/seo-agent",
     "dev:video-agent": "npm run dev -w @ibizz/video-agent",
     "dev:motion-agent": "npm run dev -w @ibizz/motion-agent",
+    "dev:geo-agent": "npm run dev -w @ibizz/geo-agent",
     "build:friday": "npm run build -w @ibizz/friday",
     "build:notulist": "npm run build -w @ibizz/notulist",
     "build:brandstudio": "npm run build -w @ibizz/brandstudio",
     "build:sea-agent": "npm run build -w @ibizz/sea-agent",
     "build:seo-agent": "npm run build -w @ibizz/seo-agent",
     "build:video-agent": "npm run build -w @ibizz/video-agent",
-    "build:motion-agent": "npm run build -w @ibizz/motion-agent"
+    "build:motion-agent": "npm run build -w @ibizz/motion-agent",
+    "build:geo-agent": "npm run build -w @ibizz/geo-agent"
   }
 }
