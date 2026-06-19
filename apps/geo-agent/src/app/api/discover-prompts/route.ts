@@ -50,14 +50,39 @@ function isQuestionLike(t: string): boolean {
 
 type Candidate = { text: string; intent: GeoPromptIntent; topic: string | null; source: GeoPromptSource; ref: string | null }
 
-async function fromReddit(topics: string[]): Promise<Candidate[]> {
+/**
+ * Officiële Reddit API (app-only OAuth, client_credentials). Veel stabieler dan
+ * het publieke .json-endpoint. Geeft null terug als er geen credentials zijn.
+ */
+async function getRedditToken(clientId: string, clientSecret: string): Promise<string | null> {
+  try {
+    const res = await fetch('https://www.reddit.com/api/v1/access_token', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64'),
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': UA,
+      },
+      body: 'grant_type=client_credentials',
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!res.ok) { console.warn(`[discover-prompts] Reddit OAuth token mislukt (${res.status})`); return null }
+    const d = await res.json() as { access_token?: string }
+    return d.access_token ?? null
+  } catch (e) { console.warn('[discover-prompts] Reddit OAuth fout:', e instanceof Error ? e.message : e); return null }
+}
+
+async function fromReddit(topics: string[], token: string | null): Promise<Candidate[]> {
   const out: Candidate[] = []
   const seen = new Set<string>()
+  // Officiële API als er een token is, anders het publieke endpoint
+  const base = token ? 'https://oauth.reddit.com/search' : 'https://www.reddit.com/search.json'
+  const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
   for (const topic of topics.slice(0, 5)) {
     try {
-      const url = `https://www.reddit.com/search.json?q=${encodeURIComponent(topic)}&limit=25&sort=relevance&t=year&type=link`
-      const res = await fetch(url, { headers: { 'User-Agent': UA, 'Accept': 'application/json' }, signal: AbortSignal.timeout(12000) })
-      if (!res.ok) { console.warn(`[discover-prompts] Reddit "${topic}" → ${res.status} (mogelijk rate-limit)`); continue }
+      const url = `${base}?q=${encodeURIComponent(topic)}&limit=25&sort=relevance&t=year&type=link`
+      const res = await fetch(url, { headers: { 'User-Agent': UA, 'Accept': 'application/json', ...authHeaders }, signal: AbortSignal.timeout(12000) })
+      if (!res.ok) { console.warn(`[discover-prompts] Reddit "${topic}" → ${res.status}${token ? '' : ' (publiek endpoint, mogelijk rate-limit — voeg REDDIT_CLIENT_ID/SECRET toe)'}`); continue }
       const data = await res.json() as { data?: { children?: { data?: { title?: string; permalink?: string } }[] } }
       for (const c of data.data?.children ?? []) {
         const title = c.data?.title?.trim()
@@ -136,7 +161,13 @@ export async function POST(req: NextRequest) {
     const topics = project.topics.length ? project.topics : [project.name]
 
     const tasks: Promise<Candidate[]>[] = []
-    if (sources.includes('reddit')) tasks.push(fromReddit(topics))
+    if (sources.includes('reddit')) {
+      // Officiële Reddit API gebruiken als de credentials er zijn (stabieler)
+      let redditToken: string | null = null
+      const rid = getEnv('REDDIT_CLIENT_ID'); const rsecret = getEnv('REDDIT_CLIENT_SECRET')
+      if (rid && rsecret) redditToken = await getRedditToken(rid, rsecret)
+      tasks.push(fromReddit(topics, redditToken))
+    }
     if (sources.includes('news')) {
       const apiKey = getEnv('ANTHROPIC_API_KEY')
       if (apiKey) tasks.push(fromNews(apiKey, topics, project.market))
