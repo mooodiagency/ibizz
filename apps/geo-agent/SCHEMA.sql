@@ -14,6 +14,7 @@ create table geo_projects (
   competitors text[] not null default '{}',
   topics text[] not null default '{}',
   status text not null default 'active' check (status in ('active', 'paused', 'archived')),
+  seo_brief_id uuid references seo_briefs(id) on delete set null,   -- gekoppelde SEO-brief voor "Kansen → SEO"
   created_by uuid references auth.users(id),
   created_by_name text,
   created_at timestamptz default now(),

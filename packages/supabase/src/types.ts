@@ -513,6 +513,7 @@ export type GeoProject = {
   competitors: string[]
   topics: string[]
   status: GeoProjectStatus
+  seo_brief_id: string | null                 // gekoppelde SEO-brief waar kansen heen gepusht worden
   created_by: string | null
   created_by_name: string | null
   created_at: string
@@ -1254,6 +1255,7 @@ export type Database = {
           competitors?: string[]
           topics?: string[]
           status?: GeoProjectStatus
+          seo_brief_id?: string | null
           created_by?: string | null
           created_by_name?: string | null
           created_at?: string

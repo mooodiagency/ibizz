@@ -1,13 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeft, Trash2, MessageCircleQuestion, Radar, Settings, Users } from 'lucide-react'
+import { ArrowLeft, Trash2, MessageCircleQuestion, Radar, Settings, Users, Target } from 'lucide-react'
 import { createClient } from '@ibizz/supabase'
 import { Select } from '@ibizz/ui'
 import type { GeoProject, GeoProjectStatus, Brand } from '@ibizz/supabase'
 import PromptsView from './PromptsView'
 import SimulationsView from './SimulationsView'
 import PersonasView from './PersonasView'
+import OpportunitiesView from './OpportunitiesView'
 
 type Props = {
   project: GeoProject
@@ -17,7 +18,7 @@ type Props = {
   onDeleted: (id: string) => void
 }
 
-type Tab = 'prompts' | 'personas' | 'simulations' | 'settings'
+type Tab = 'prompts' | 'personas' | 'simulations' | 'opportunities' | 'settings'
 
 const STATUS_PILL: Record<GeoProjectStatus, string> = {
   active: 'bg-green-100 text-green-700',
@@ -75,6 +76,7 @@ export default function ProjectDetail({ project, brand, onBack, onUpdated, onDel
           <TabBtn icon={<MessageCircleQuestion size={13} />} label="Vragen" active={tab === 'prompts'} onClick={() => setTab('prompts')} />
           <TabBtn icon={<Users size={13} />} label="Persona's" active={tab === 'personas'} onClick={() => setTab('personas')} />
           <TabBtn icon={<Radar size={13} />} label="Simulaties" active={tab === 'simulations'} onClick={() => setTab('simulations')} />
+          <TabBtn icon={<Target size={13} />} label="Kansen → SEO" active={tab === 'opportunities'} onClick={() => setTab('opportunities')} />
           <TabBtn icon={<Settings size={13} />} label="Instellingen" active={tab === 'settings'} onClick={() => setTab('settings')} />
         </div>
       </div>
@@ -84,6 +86,7 @@ export default function ProjectDetail({ project, brand, onBack, onUpdated, onDel
         {tab === 'prompts' && <PromptsView project={project} />}
         {tab === 'personas' && <PersonasView project={project} />}
         {tab === 'simulations' && <SimulationsView project={project} />}
+        {tab === 'opportunities' && <OpportunitiesView project={project} />}
         {tab === 'settings' && (
           <div className="px-8 py-6 max-w-2xl space-y-4">
             <SettingsBlock label="Merk-termen" values={project.brand_terms}
